@@ -25,16 +25,19 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
   return (
     <div className="login-wrap">
+      <div className="login-glow" aria-hidden="true" />
+      <div className="login-glow login-glow-alt" aria-hidden="true" />
       <div className="login-card">
+        <p className="login-chip">Private wishbook</p>
         <div className="login-icon">💝</div>
         <h1 className="login-title">Love Presents</h1>
-        <p className="login-sub">Nhập mật khẩu để vào danh sách quà tặng</p>
+        <p className="login-sub">Mở chiếc hộp nhỏ chứa những món quà bạn mong chờ nhất.</p>
 
         <form className="login-form" onSubmit={e => { void handleSubmit(e) }}>
           <input
             className="form-input"
             type="password"
-            placeholder="Mật khẩu"
+            placeholder="Nhập mật khẩu của hai bạn"
             value={password}
             onChange={e => { setPassword(e.target.value); setError('') }}
             autoFocus
@@ -48,6 +51,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             {loading ? 'Đang vào...' : 'Vào danh sách'}
           </button>
         </form>
+        <p className="login-footnote">Mỗi món quà là một lời yêu thương được lưu lại.</p>
       </div>
     </div>
   )

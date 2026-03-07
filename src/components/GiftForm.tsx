@@ -132,7 +132,7 @@ export function GiftForm({ initialData, onSubmit, onCancel, submitLabel = 'Thêm
         </label>
         <div className="desire-group">
           {DESIRE_LEVELS.map(({ value, emoji }) => (
-            <label key={value} style={{ display: 'flex', alignItems: 'center' }}>
+            <label key={value} className="desire-item">
               <input
                 type="radio"
                 name="desireLevel"
@@ -162,7 +162,7 @@ export function GiftForm({ initialData, onSubmit, onCancel, submitLabel = 'Thêm
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+      <div className="form-actions">
         {onCancel && (
           <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={loading}>
             Huỷ
@@ -170,8 +170,7 @@ export function GiftForm({ initialData, onSubmit, onCancel, submitLabel = 'Thêm
         )}
         <button
           type="submit"
-          className="btn btn-primary"
-          style={{ flex: 1 }}
+          className="btn btn-primary form-submit"
           disabled={loading}
         >
           {loading ? 'Đang lưu...' : submitLabel}

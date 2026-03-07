@@ -25,10 +25,16 @@ export function AddGiftPage() {
 
   return (
     <main className="page">
-      <h1 className="page-title">Thêm quà mong muốn</h1>
+      <section className="page-hero page-hero-compact">
+        <div>
+          <p className="page-kicker">Dream Collector</p>
+          <h1 className="page-title">Thêm quà mong muốn</h1>
+          <p className="page-subtitle">Viết thật cụ thể để người thương hiểu đúng điều bạn thích.</p>
+        </div>
+      </section>
 
       {success && (
-        <div className="alert alert-success" style={{ marginBottom: 20 }}>
+        <div className="alert alert-success alert-spaced">
           Đã thêm vào danh sách! Bạn có thể tiếp tục thêm quà khác.
         </div>
       )}

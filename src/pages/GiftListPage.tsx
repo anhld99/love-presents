@@ -68,7 +68,16 @@ export function GiftListPage() {
 
   return (
     <main className="page">
-      <h1 className="page-title">Danh sách quà</h1>
+      <section className="page-hero">
+        <div>
+          <p className="page-kicker">Wishbook</p>
+          <h1 className="page-title">Danh sách quà</h1>
+          <p className="page-subtitle">Lưu lại những điều nhỏ xinh để mỗi dịp đặc biệt đều thật ý nghĩa.</p>
+        </div>
+        <Link to="/add" className="btn btn-primary hero-cta">
+          + Thêm quà mới
+        </Link>
+      </section>
 
       {gifts.length > 0 && (
         <div className="summary-bar">
@@ -101,7 +110,7 @@ export function GiftListPage() {
           <div className="empty-state-icon">🎁</div>
           <h3>Chưa có quà nào trong danh sách</h3>
           <p>Hãy thêm những món quà bạn mơ ước nhé!</p>
-          <Link to="/add" className="btn btn-primary" style={{ display: 'inline-flex' }}>
+          <Link to="/add" className="btn btn-primary btn-inline">
             Thêm quà đầu tiên
           </Link>
         </div>

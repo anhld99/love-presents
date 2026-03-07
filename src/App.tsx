@@ -11,17 +11,18 @@ function Topbar({ onLogout }: { onLogout: () => void }) {
     <header className="topbar">
       <div className="topbar-inner">
         <a href="/" className="topbar-logo">
-          💝 <span>Love Presents</span>
+          <span className="logo-mark">💝</span>
+          <span className="logo-text">Love Presents</span>
         </a>
         <nav className="topbar-nav">
           <NavLink to="/gifts" className={({ isActive }) => isActive ? 'active' : ''}>
-            <span>Danh sách</span>
+            <span>💌 Danh sách</span>
           </NavLink>
           <NavLink to="/add" className={({ isActive }) => isActive ? 'active' : ''}>
-            <span>Thêm quà</span>
+            <span>✨ Thêm quà</span>
           </NavLink>
           <button className="topbar-logout" onClick={onLogout}>
-            Thoát
+            🌙 Thoát
           </button>
         </nav>
       </div>
@@ -32,6 +33,9 @@ function Topbar({ onLogout }: { onLogout: () => void }) {
 function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="app-shell">
+      <div className="bg-orb orb-1" aria-hidden="true" />
+      <div className="bg-orb orb-2" aria-hidden="true" />
+      <div className="bg-orb orb-3" aria-hidden="true" />
       <Topbar onLogout={onLogout} />
       <Routes>
         <Route path="/gifts" element={<GiftListPage />} />
@@ -47,7 +51,7 @@ function AppInner() {
 
   if (checking) {
     return (
-      <div className="spinner-wrap" style={{ minHeight: '100vh' }}>
+      <div className="spinner-wrap spinner-wrap-fullscreen">
         <div className="spinner" />
       </div>
     )

@@ -53,7 +53,7 @@ export function GiftCard({ gift, onToggle, onDelete, onEdit }: GiftCardProps) {
   if (editing) {
     return (
       <div className="card">
-        <div style={{ marginBottom: 16, fontWeight: 600, color: 'var(--gray-700)' }}>
+        <div className="card-caption">
           Chỉnh sửa quà
         </div>
         <GiftForm
