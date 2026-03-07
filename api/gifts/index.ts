@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireAuth } from '../_session.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 import type { GiftFormData } from '../../src/types/gift.js'
+import { toGiftItem, toInsertPayload } from '../_giftMapper.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAuth(req, res)) return
@@ -15,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .order('created_at', { ascending: false })
 
     if (error) return res.status(500).json({ error: error.message })
-    return res.status(200).json(data)
+    return res.status(200).json((data ?? []).map(toGiftItem))
   }
 
   if (req.method === 'POST') {
@@ -26,19 +27,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data, error } = await supabase
       .from('gifts')
-      .insert({
-        name: body.name,
-        category: body.category,
-        budget_range: body.budgetRange,
-        desire_level: body.desireLevel,
-        sample_url: body.sampleUrl ?? '',
-        is_gifted: false,
-      })
+      .insert(toInsertPayload(body))
       .select()
       .single()
 
     if (error) return res.status(500).json({ error: error.message })
-    return res.status(201).json(data)
+    return res.status(201).json(toGiftItem(data))
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
