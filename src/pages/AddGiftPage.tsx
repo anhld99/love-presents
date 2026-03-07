@@ -5,16 +5,23 @@ import { useGifts } from '../hooks/useGifts'
 import { useToast } from '../components/ToastProvider'
 import type { GiftFormData } from '../types/gift'
 
+const CONFETTI_CLASSES = [
+  'confetti-1', 'confetti-2', 'confetti-3', 'confetti-4', 'confetti-5', 'confetti-6',
+  'confetti-7', 'confetti-8', 'confetti-9', 'confetti-10', 'confetti-11', 'confetti-12',
+]
+
 export function AddGiftPage() {
   const { addGift } = useGifts()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [success, setSuccess] = useState(false)
+  const [burstKey, setBurstKey] = useState(0)
 
   async function handleSubmit(data: GiftFormData) {
     try {
       await addGift(data)
       setSuccess(true)
+      setBurstKey(prev => prev + 1)
       showToast('Đã thêm quà vào danh sách!')
       setTimeout(() => setSuccess(false), 2000)
     } catch (err) {
@@ -24,28 +31,38 @@ export function AddGiftPage() {
   }
 
   return (
-    <main className="page">
-      <section className="page-hero page-hero-compact">
-        <div>
-          <p className="page-kicker">Dream Collector</p>
-          <h1 className="page-title">Thêm quà mong muốn</h1>
-          <p className="page-subtitle">Viết thật cụ thể để người thương hiểu đúng điều bạn thích.</p>
-        </div>
-      </section>
-
-      {success && (
-        <div className="alert alert-success alert-spaced">
-          Đã thêm vào danh sách! Bạn có thể tiếp tục thêm quà khác.
+    <>
+      {burstKey > 0 && (
+        <div className="confetti-stage" key={`burst-${burstKey}`} aria-hidden="true">
+          {CONFETTI_CLASSES.map(cls => (
+            <span key={`${burstKey}-${cls}`} className={`confetti ${cls}`} />
+          ))}
         </div>
       )}
 
-      <div className="card">
-        <GiftForm
-          onSubmit={handleSubmit}
-          onCancel={() => navigate('/gifts')}
-          submitLabel="Thêm vào danh sách"
-        />
-      </div>
-    </main>
+      <main className="page">
+        <section className="page-hero page-hero-compact">
+          <div>
+            <p className="page-kicker">Dream Collector</p>
+            <h1 className="page-title">Thêm quà mong muốn</h1>
+            <p className="page-subtitle">Viết thật cụ thể để người thương hiểu đúng điều bạn thích.</p>
+          </div>
+        </section>
+
+        {success && (
+          <div className="alert alert-success alert-spaced">
+            Đã thêm vào danh sách! Bạn có thể tiếp tục thêm quà khác.
+          </div>
+        )}
+
+        <div className="card">
+          <GiftForm
+            onSubmit={handleSubmit}
+            onCancel={() => navigate('/gifts')}
+            submitLabel="Thêm vào danh sách"
+          />
+        </div>
+      </main>
+    </>
   )
 }

@@ -2,9 +2,11 @@ import { useState } from 'react'
 
 interface LoginPageProps {
   onLogin: (password: string) => Promise<void>
+  theme: 'romantic' | 'anniversary'
+  onToggleTheme: () => void
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, theme, onToggleTheme }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -28,6 +30,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <div className="login-glow" aria-hidden="true" />
       <div className="login-glow login-glow-alt" aria-hidden="true" />
       <div className="login-card">
+        <button className="login-theme-toggle" type="button" onClick={onToggleTheme}>
+          {theme === 'anniversary' ? '🎀 Chế độ lãng mạn' : '🎉 Chế độ kỷ niệm'}
+        </button>
         <p className="login-chip">Private wishbook</p>
         <div className="login-icon">💝</div>
         <h1 className="login-title">Love Presents</h1>
