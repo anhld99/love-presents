@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { requireAuth } from '../_session'
-import { getSupabaseAdmin } from '../_supabase'
-import type { GiftFormData } from '../../src/types/gift'
+import { requireAuth } from '../_session.js'
+import { getSupabaseAdmin } from '../_supabase.js'
+import type { GiftFormData } from '../../src/types/gift.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAuth(req, res)) return

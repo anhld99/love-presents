@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { useAuth } from '../hooks/useAuth'
 
-export function LoginPage() {
-  const { login } = useAuth()
+interface LoginPageProps {
+  onLogin: (password: string) => Promise<void>
+}
+
+export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -13,7 +15,7 @@ export function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      await login(password)
+      await onLogin(password)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Mật khẩu không đúng')
     } finally {

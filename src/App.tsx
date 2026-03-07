@@ -43,7 +43,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
 }
 
 function AppInner() {
-  const { authenticated, checking, logout } = useAuth()
+  const { authenticated, checking, login, logout } = useAuth()
 
   if (checking) {
     return (
@@ -53,7 +53,7 @@ function AppInner() {
     )
   }
 
-  if (!authenticated) return <LoginPage />
+  if (!authenticated) return <LoginPage onLogin={login} />
 
   return (
     <GiftsProvider>
