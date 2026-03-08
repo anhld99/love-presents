@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { useToast } from '../components/useToast'
 import { createFoodOption, deleteFoodOption, fetchFoodOptions } from '../lib/api'
 import type { FoodOption, FoodPriceLevel } from '../types/food'
@@ -8,6 +8,7 @@ interface EatTodayPageProps {
 }
 
 const WHEEL_COLORS = ['#ffd6e4', '#ffe7c7', '#ffeef4', '#f5ddff', '#ffe2d8', '#fff0ca']
+const MAX_WHEEL_LABELS = 12
 
 export function EatTodayPage({ role }: EatTodayPageProps) {
   const { showToast } = useToast()
@@ -19,6 +20,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
   const [spinning, setSpinning] = useState(false)
   const [wheelRotation, setWheelRotation] = useState(0)
   const [result, setResult] = useState<FoodOption | null>(null)
+  const [hoverInfo, setHoverInfo] = useState<{ index: number, x: number, y: number } | null>(null)
 
   const [name, setName] = useState('')
   const [restaurantAddress, setRestaurantAddress] = useState('')
@@ -54,6 +56,51 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 
     return `conic-gradient(from 0deg, ${segments.join(', ')})`
   }, [filtered])
+
+  const wheelLabelIndexes = useMemo(() => {
+    if (filtered.length === 0) return [] as number[]
+
+    if (filtered.length <= MAX_WHEEL_LABELS) {
+      return filtered.map((_, idx) => idx)
+    }
+
+    const sampled = new Set<number>()
+    const step = filtered.length / MAX_WHEEL_LABELS
+
+    for (let slot = 0; slot < MAX_WHEEL_LABELS; slot += 1) {
+      const candidate = Math.floor(slot * step)
+      sampled.add(Math.min(filtered.length - 1, candidate))
+    }
+
+    return [...sampled].sort((a, b) => a - b)
+  }, [filtered])
+
+  const wheelLabelIndexSet = useMemo(() => new Set(wheelLabelIndexes), [wheelLabelIndexes])
+
+  const labelFontRem = useMemo(() => {
+    if (filtered.length <= 6) return 0.78
+    if (filtered.length <= 10) return 0.72
+    if (filtered.length <= 16) return 0.66
+    if (filtered.length <= 24) return 0.6
+    return 0.54
+  }, [filtered.length])
+
+  const labelOffsetPx = useMemo(() => {
+    if (filtered.length <= 8) return 114
+    if (filtered.length <= 16) return 118
+    return 121
+  }, [filtered.length])
+
+  const labelMaxChars = useMemo(() => {
+    if (filtered.length <= 8) return 18
+    if (filtered.length <= 14) return 14
+    return 11
+  }, [filtered.length])
+
+  const hoveredOption = hoverInfo ? filtered[hoverInfo.index] : null
+  const showHoverTooltip = !!hoverInfo
+    && !!hoveredOption
+    && (hoveredOption.name.length > labelMaxChars || !wheelLabelIndexSet.has(hoverInfo.index))
 
   useEffect(() => {
     let alive = true
@@ -160,6 +207,41 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
     }, 4200)
   }
 
+  function handleWheelMouseMove(e: MouseEvent<HTMLDivElement>) {
+    if (filtered.length === 0 || spinning) {
+      if (hoverInfo) setHoverInfo(null)
+      return
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    const dx = x - centerX
+    const dy = y - centerY
+    const radius = rect.width / 2
+    const distance = Math.sqrt(dx * dx + dy * dy)
+
+    if (distance > radius || distance < radius * 0.18) {
+      if (hoverInfo) setHoverInfo(null)
+      return
+    }
+
+    const deg = (Math.atan2(dy, dx) * 180 / Math.PI + 450) % 360
+    const slice = 360 / filtered.length
+    const index = Math.min(filtered.length - 1, Math.floor(deg / slice))
+
+    const clampedX = Math.max(22, Math.min(rect.width - 22, x))
+    const clampedY = Math.max(22, Math.min(rect.height - 22, y))
+
+    setHoverInfo({ index, x: clampedX, y: clampedY })
+  }
+
+  function handleWheelMouseLeave() {
+    if (hoverInfo) setHoverInfo(null)
+  }
+
   return (
     <main className="page">
       <section className="page-hero page-hero-compact">
@@ -199,26 +281,50 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
                 background: wheelBackground,
                 transform: `rotate(${wheelRotation}deg)`,
               }}
+              onMouseMove={handleWheelMouseMove}
+              onMouseLeave={handleWheelMouseLeave}
             >
-              {filtered.slice(0, 12).map((item, idx) => {
+              {wheelLabelIndexes.map(itemIndex => {
+                const item = filtered[itemIndex]
                 const slice = 360 / filtered.length
-                const centerDeg = idx * slice + slice / 2
+                const centerDeg = itemIndex * slice + slice / 2
+                const labelRotation = centerDeg > 90 && centerDeg < 270 ? centerDeg + 180 : centerDeg
                 return (
                   <span
                     key={item.id}
                     className="wheel-label"
                     style={{
-                      transform: `translate(-50%, -50%) rotate(${centerDeg}deg) translateY(-112px) rotate(-${centerDeg}deg)`,
+                      fontSize: `${labelFontRem}rem`,
+                      transform: `translate(-50%, -50%) rotate(${labelRotation}deg) translateY(-${labelOffsetPx}px)`,
                     }}
                   >
-                    {trimLabel(item.name)}
+                    {trimLabel(item.name, labelMaxChars)}
                   </span>
                 )
               })}
+
+              {showHoverTooltip && hoveredOption && (
+                <div
+                  className="wheel-tooltip"
+                  style={{
+                    left: `${hoverInfo.x}px`,
+                    top: `${hoverInfo.y}px`,
+                  }}
+                >
+                  {hoveredOption.name}
+                </div>
+              )}
+
               <div className="wheel-center">🍽️</div>
             </div>
           </div>
         </div>
+
+        {filtered.length > MAX_WHEEL_LABELS && (
+          <p className="roulette-sub wheel-note">
+            Vòng quay có {filtered.length} món, đang hiển thị ngẫu nhiên {wheelLabelIndexes.length} nhãn để dễ nhìn.
+          </p>
+        )}
 
         <div className="roulette-panel">
           <p className="roulette-label">Đang quay mức: {labelLevel(priceLevel)}</p>
@@ -342,6 +448,6 @@ function labelLevel(level: FoodPriceLevel): string {
   return level === 'binh_dan' ? 'Bình dân' : 'Đắt đỏ'
 }
 
-function trimLabel(value: string): string {
-  return value.length > 16 ? `${value.slice(0, 16)}…` : value
+function trimLabel(value: string, maxChars: number): string {
+  return value.length > maxChars ? `${value.slice(0, maxChars)}…` : value
 }

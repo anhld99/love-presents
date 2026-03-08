@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-do
 import { useAuth } from './hooks/useAuth'
 import { GiftsProvider } from './hooks/useGifts'
 import { LoginPage } from './pages/LoginPage'
+import { HomePage } from './pages/HomePage'
 import { AddGiftPage } from './pages/AddGiftPage'
 import { GiftListPage } from './pages/GiftListPage'
 import { ToastProvider } from './components/ToastProvider'
@@ -246,34 +247,6 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
     return await fetchCoupleActivity()
   }, [])
 
-  const fallback = checking
-    ? (
-      <div className="spinner-wrap spinner-wrap-fullscreen">
-        <div className="spinner" />
-      </div>
-      )
-    : authenticated
-      ? (
-        <GiftsProvider canReadList={hasCouple && canViewList}>
-          <AuthenticatedApp
-            onLogout={() => { void logout() }}
-            theme={theme}
-            onToggleTheme={onToggleTheme}
-            canViewList={canViewList}
-            hasCouple={hasCouple}
-            role={role}
-            email={email}
-            onCreateCouple={handleCreateCouple}
-            onInviteEm={handleInviteEm}
-            onFetchInvites={handleFetchInvites}
-            onResendInvite={handleResendInvite}
-            onCancelInvite={handleCancelInvite}
-            onFetchActivity={handleFetchActivity}
-          />
-        </GiftsProvider>
-        )
-      : <LoginPage onLogin={() => startGoogleLogin('/')} theme={theme} onToggleTheme={onToggleTheme} />
-
   return (
     <Routes>
       <Route path="/auth/callback" element={<AuthCallbackPage onComplete={finishGoogleLogin} />} />
@@ -289,7 +262,53 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
           />
         }
       />
-      <Route path="*" element={fallback} />
+
+      {checking && (
+        <Route
+          path="*"
+          element={
+            <div className="spinner-wrap spinner-wrap-fullscreen">
+              <div className="spinner" />
+            </div>
+          }
+        />
+      )}
+
+      {!checking && authenticated && (
+        <Route
+          path="*"
+          element={
+            <GiftsProvider canReadList={hasCouple && canViewList}>
+              <AuthenticatedApp
+                onLogout={() => { void logout() }}
+                theme={theme}
+                onToggleTheme={onToggleTheme}
+                canViewList={canViewList}
+                hasCouple={hasCouple}
+                role={role}
+                email={email}
+                onCreateCouple={handleCreateCouple}
+                onInviteEm={handleInviteEm}
+                onFetchInvites={handleFetchInvites}
+                onResendInvite={handleResendInvite}
+                onCancelInvite={handleCancelInvite}
+                onFetchActivity={handleFetchActivity}
+              />
+            </GiftsProvider>
+          }
+        />
+      )}
+
+      {!checking && !authenticated && (
+        <>
+          <Route
+            path="/"
+            element={<HomePage theme={theme} onToggleTheme={onToggleTheme} onOpenLogin={() => { void startGoogleLogin('/') }} />}
+          />
+          <Route path="/login" element={<LoginPage onLogin={() => startGoogleLogin('/')} theme={theme} onToggleTheme={onToggleTheme} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </>
+      )}
     </Routes>
   )
 }
