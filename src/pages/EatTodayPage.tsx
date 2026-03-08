@@ -7,6 +7,8 @@ interface EatTodayPageProps {
   role: 'anh' | 'em' | null
 }
 
+const WHEEL_COLORS = ['#ffd6e4', '#ffe7c7', '#ffeef4', '#f5ddff', '#ffe2d8', '#fff0ca']
+
 export function EatTodayPage({ role }: EatTodayPageProps) {
   const { showToast } = useToast()
   const [options, setOptions] = useState<FoodOption[]>([])
@@ -15,7 +17,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 
   const [priceLevel, setPriceLevel] = useState<FoodPriceLevel>('binh_dan')
   const [spinning, setSpinning] = useState(false)
-  const [preview, setPreview] = useState<FoodOption | null>(null)
+  const [wheelRotation, setWheelRotation] = useState(0)
   const [result, setResult] = useState<FoodOption | null>(null)
 
   const [name, setName] = useState('')
@@ -24,7 +26,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState('')
 
-  const spinTimerRef = useRef<number | null>(null)
+  const spinTimeoutRef = useRef<number | null>(null)
 
   const isAnh = role === 'anh'
 
@@ -34,6 +36,24 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 
   const cheapCount = useMemo(() => options.filter(item => item.priceLevel === 'binh_dan').length, [options])
   const priceyCount = useMemo(() => options.filter(item => item.priceLevel === 'dat_do').length, [options])
+
+  const wheelBackground = useMemo(() => {
+    if (filtered.length === 0) {
+      return 'conic-gradient(from 0deg, rgba(255,245,249,0.95), rgba(255,234,242,0.95))'
+    }
+
+    const slice = 360 / filtered.length
+    const segments: string[] = []
+
+    for (let idx = 0; idx < filtered.length; idx += 1) {
+      const start = (idx * slice).toFixed(3)
+      const end = ((idx + 1) * slice).toFixed(3)
+      const color = WHEEL_COLORS[idx % WHEEL_COLORS.length]
+      segments.push(`${color} ${start}deg ${end}deg`)
+    }
+
+    return `conic-gradient(from 0deg, ${segments.join(', ')})`
+  }, [filtered])
 
   useEffect(() => {
     let alive = true
@@ -59,8 +79,8 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 
     return () => {
       alive = false
-      if (spinTimerRef.current) {
-        window.clearInterval(spinTimerRef.current)
+      if (spinTimeoutRef.current) {
+        window.clearTimeout(spinTimeoutRef.current)
       }
     }
   }, [])
@@ -96,8 +116,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
     try {
       await deleteFoodOption(id)
       setOptions(prev => prev.filter(item => item.id !== id))
-      setResult(prev => prev?.id === id ? null : prev)
-      setPreview(prev => prev?.id === id ? null : prev)
+      setResult(prev => (prev?.id === id ? null : prev))
       showToast('Đã xoá món ăn')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Không thể xoá món ăn', 'error')
@@ -114,42 +133,40 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
       return
     }
 
-    if (spinTimerRef.current) {
-      window.clearInterval(spinTimerRef.current)
-      spinTimerRef.current = null
-    }
+    const winnerIndex = Math.floor(Math.random() * filtered.length)
+    const winner = filtered[winnerIndex]
+    const slice = 360 / filtered.length
+    const centerDeg = winnerIndex * slice + slice / 2
 
-    let tick = 0
-    const maxTick = 24
     setSpinning(true)
     setResult(null)
 
-    spinTimerRef.current = window.setInterval(() => {
-      tick += 1
-      const picked = filtered[Math.floor(Math.random() * filtered.length)]
-      setPreview(picked)
+    const currentNormalized = ((wheelRotation % 360) + 360) % 360
+    const targetOffset = (360 - centerDeg) % 360
+    const delta = (targetOffset - currentNormalized + 360) % 360
+    const extraTurns = 6 + Math.floor(Math.random() * 3)
+    const finalRotation = wheelRotation + extraTurns * 360 + delta
 
-      if (tick >= maxTick) {
-        if (spinTimerRef.current) {
-          window.clearInterval(spinTimerRef.current)
-          spinTimerRef.current = null
-        }
-        const winner = filtered[Math.floor(Math.random() * filtered.length)]
-        setPreview(winner)
-        setResult(winner)
-        setSpinning(false)
-        showToast(`Hôm nay ăn: ${winner.name}`)
-      }
-    }, 90)
+    setWheelRotation(finalRotation)
+
+    if (spinTimeoutRef.current) {
+      window.clearTimeout(spinTimeoutRef.current)
+    }
+
+    spinTimeoutRef.current = window.setTimeout(() => {
+      setSpinning(false)
+      setResult(winner)
+      showToast(`Hôm nay ăn: ${winner.name}`)
+    }, 4200)
   }
 
   return (
     <main className="page">
       <section className="page-hero page-hero-compact">
         <div>
-          <p className="page-kicker">Food Roulette</p>
+          <p className="page-kicker">Lucky Food Wheel</p>
           <h1 className="page-title">Hôm nay ăn gì?</h1>
-          <p className="page-subtitle">Chọn mức giá rồi quay để chốt món trong tích tắc.</p>
+          <p className="page-subtitle">Vòng quay may mắn chọn món nhanh, đẹp và đúng mood của hai bạn.</p>
         </div>
       </section>
 
@@ -161,7 +178,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
             onClick={() => setPriceLevel('binh_dan')}
             disabled={spinning}
           >
-            Binh dan ({cheapCount})
+            Bình dân ({cheapCount})
           </button>
           <button
             type="button"
@@ -169,68 +186,98 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
             onClick={() => setPriceLevel('dat_do')}
             disabled={spinning}
           >
-            Dat do ({priceyCount})
+            Đắt đỏ ({priceyCount})
           </button>
         </div>
 
-        <div className={`roulette-panel${spinning ? ' spinning' : ''}`}>
-          <p className="roulette-label">Muc dang quay: {labelLevel(priceLevel)}</p>
-          <h2 className="roulette-title">{preview?.name ?? 'San sang quay mon?'}</h2>
-          <p className="roulette-sub">{preview ? preview.restaurantAddress : 'Them mon an de bat dau vong quay'}</p>
-          {result && (
-            <p className="roulette-result">Chot keo: {result.name}</p>
-          )}
+        <div className="lucky-wheel-wrap">
+          <div className="wheel-pointer" aria-hidden="true" />
+          <div className="wheel-frame">
+            <div
+              className={`lucky-wheel${spinning ? ' spinning' : ''}`}
+              style={{
+                background: wheelBackground,
+                transform: `rotate(${wheelRotation}deg)`,
+              }}
+            >
+              {filtered.slice(0, 12).map((item, idx) => {
+                const slice = 360 / filtered.length
+                const centerDeg = idx * slice + slice / 2
+                return (
+                  <span
+                    key={item.id}
+                    className="wheel-label"
+                    style={{
+                      transform: `translate(-50%, -50%) rotate(${centerDeg}deg) translateY(-112px) rotate(-${centerDeg}deg)`,
+                    }}
+                  >
+                    {trimLabel(item.name)}
+                  </span>
+                )
+              })}
+              <div className="wheel-center">🍽️</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="roulette-panel">
+          <p className="roulette-label">Đang quay mức: {labelLevel(priceLevel)}</p>
+          <h2 className="roulette-title">{result?.name ?? (spinning ? 'Đang xoay thật mạnh...' : 'Sẵn sàng quay món?')}</h2>
+          <p className="roulette-sub">
+            {result ? result.restaurantAddress : filtered.length === 0 ? 'Thêm món ăn để bắt đầu vòng quay' : 'Bấm quay để chọn món ngẫu nhiên'}
+          </p>
+          {result && <p className="roulette-result">Chốt kèo: {result.name}</p>}
           <button type="button" className="btn btn-primary" onClick={handleSpin} disabled={spinning || loading}>
-            {spinning ? 'Dang quay...' : 'Quay mon ngay'}
+            {spinning ? 'Đang quay...' : 'Quay may mắn'}
           </button>
         </div>
       </div>
 
       {isAnh && (
         <div className="card food-manage-card">
-          <h3>Them mon an moi</h3>
-          <p className="page-subtitle">Chi anh duoc cap nhat danh sach mon cho vong quay.</p>
+          <h3>Thêm món ăn mới</h3>
+          <p className="page-subtitle">Chỉ anh được cập nhật danh sách món cho vòng quay.</p>
           <form className="form-grid" onSubmit={e => { void handleAddOption(e) }}>
             <div className="form-group">
-              <label className="form-label">Ten mon</label>
+              <label className="form-label">Tên món</label>
               <input
                 className="form-input"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Vi du: Bun cha Ha Noi"
+                placeholder="Ví dụ: Bún chả Hà Nội"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Dia chi quan</label>
+              <label className="form-label">Địa chỉ quán</label>
               <input
                 className="form-input"
                 value={restaurantAddress}
                 onChange={e => setRestaurantAddress(e.target.value)}
-                placeholder="So nha, duong, quan"
+                placeholder="Số nhà, đường, quận"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Muc gia</label>
+              <label className="form-label">Mức giá</label>
               <div className="food-tier-switch">
                 <button
                   type="button"
                   className={`food-tier-btn${newPriceLevel === 'binh_dan' ? ' active' : ''}`}
                   onClick={() => setNewPriceLevel('binh_dan')}
                 >
-                  Binh dan
+                  Bình dân
                 </button>
                 <button
                   type="button"
                   className={`food-tier-btn${newPriceLevel === 'dat_do' ? ' active' : ''}`}
                   onClick={() => setNewPriceLevel('dat_do')}
                 >
-                  Dat do
+                  Đắt đỏ
                 </button>
               </div>
             </div>
             <div className="form-actions">
               <button type="submit" className="btn btn-primary form-submit" disabled={saving}>
-                {saving ? 'Dang luu...' : 'Them mon'}
+                {saving ? 'Đang lưu...' : 'Thêm món'}
               </button>
             </div>
           </form>
@@ -238,8 +285,8 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
       )}
 
       <div className="card food-manage-card">
-        <h3>Danh sach mon an</h3>
-        <p className="page-subtitle">Tat ca mon co trong vong quay cua couple.</p>
+        <h3>Danh sách món ăn</h3>
+        <p className="page-subtitle">Tất cả món có trong vòng quay của couple.</p>
 
         {loading && (
           <div className="spinner-wrap">
@@ -251,9 +298,9 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 
         {!loading && !error && options.length === 0 && (
           <div className="empty-state">
-            <div className="empty-state-icon">🍽️</div>
-            <h3>Chua co mon an nao</h3>
-            <p>{isAnh ? 'Hay them mon de bat dau vong quay.' : 'Nho anh them mon de co the quay.'}</p>
+            <div className="empty-state-icon">🍜</div>
+            <h3>Chưa có món ăn nào</h3>
+            <p>{isAnh ? 'Hãy thêm món để bắt đầu vòng quay.' : 'Nhờ anh thêm món để có thể quay.'}</p>
           </div>
         )}
 
@@ -278,7 +325,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
                         void handleDeleteOption(item.id)
                       }}
                     >
-                      Xoa
+                      Xoá
                     </button>
                   )}
                 </div>
@@ -292,5 +339,9 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 }
 
 function labelLevel(level: FoodPriceLevel): string {
-  return level === 'binh_dan' ? 'Binh dan' : 'Dat do'
+  return level === 'binh_dan' ? 'Bình dân' : 'Đắt đỏ'
+}
+
+function trimLabel(value: string): string {
+  return value.length > 16 ? `${value.slice(0, 16)}…` : value
 }

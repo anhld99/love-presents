@@ -66,7 +66,7 @@ function Topbar({
           )}
           {hasCouple && (
             <NavLink to="/eat" className={({ isActive }) => isActive ? 'active' : ''}>
-              <span>🍜 Hom nay an gi?</span>
+              <span>🍜 Hôm nay ăn gì</span>
             </NavLink>
           )}
           {!hasCouple && (
@@ -114,7 +114,7 @@ function MobileDock({
       {hasCouple && (
         <NavLink to="/eat" className={({ isActive }) => isActive ? 'active' : ''}>
           <span className="mobile-dock-icon">🍜</span>
-          <span className="mobile-dock-label">An gi</span>
+          <span className="mobile-dock-label">Ăn gì</span>
         </NavLink>
       )}
       {!hasCouple && (
