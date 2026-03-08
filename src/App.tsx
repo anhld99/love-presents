@@ -53,9 +53,11 @@ function Topbar({
               <span>✨ Thêm quà</span>
             </NavLink>
           )}
-          <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
-            <span>💞 Couple</span>
-          </NavLink>
+          {!hasCouple && (
+            <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
+              <span>💞 Couple</span>
+            </NavLink>
+          )}
           <button className="topbar-theme" onClick={onToggleTheme}>
             {theme === 'anniversary' ? '🎀 Lãng mạn' : '🎉 Kỷ niệm'}
           </button>
@@ -77,8 +79,10 @@ function MobileDock({
   canViewList: boolean
   hasCouple: boolean
 }) {
+  const itemCount = (hasCouple && canViewList ? 1 : 0) + (hasCouple ? 1 : 0) + (!hasCouple ? 1 : 0) + 1
+
   return (
-    <nav className={`mobile-dock${canViewList && hasCouple ? '' : ' no-list'}`} aria-label="Điều hướng nhanh">
+    <nav className={`mobile-dock columns-${itemCount}`} aria-label="Điều hướng nhanh">
       {canViewList && hasCouple && (
         <NavLink to="/gifts" className={({ isActive }) => isActive ? 'active' : ''}>
           <span className="mobile-dock-icon">💌</span>
@@ -91,10 +95,12 @@ function MobileDock({
           <span className="mobile-dock-label">Thêm quà</span>
         </NavLink>
       )}
-      <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
-        <span className="mobile-dock-icon">💞</span>
-        <span className="mobile-dock-label">Couple</span>
-      </NavLink>
+      {!hasCouple && (
+        <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span className="mobile-dock-icon">💞</span>
+          <span className="mobile-dock-label">Couple</span>
+        </NavLink>
+      )}
       <button className="mobile-dock-btn" onClick={onLogout}>
         <span className="mobile-dock-icon">🌙</span>
         <span className="mobile-dock-label">Thoát</span>
