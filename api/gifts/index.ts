@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getAppBaseUrl } from '../_appUrl.js'
 import { ensureAppUser, getCoupleMemberEmailByRole, getMembershipByUserId, requireSessionUser } from '../_couples.js'
 import { sendGiftAddedEmail } from '../_mailer.js'
+import { parsePagination, toPaginationMeta } from '../_pagination.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 import type { GiftFormData } from '../../src/types/gift.js'
 import { toGiftItem, toInsertPayload } from '../_giftMapper.js'
@@ -26,14 +27,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Tài khoản em không có quyền xem danh sách quà' })
       }
 
-      const { data, error } = await supabase
+      const { page, pageSize, from, to } = parsePagination(req)
+
+      const { data, count, error } = await supabase
         .from('gifts')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('couple_id', membership.coupleId)
         .order('created_at', { ascending: false })
+        .range(from, to)
 
       if (error) return res.status(500).json({ error: error.message })
-      return res.status(200).json((data ?? []).map(toGiftItem))
+
+      return res.status(200).json({
+        items: (data ?? []).map(toGiftItem),
+        pagination: toPaginationMeta(count ?? 0, page, pageSize),
+      })
     }
 
     if (req.method === 'POST') {

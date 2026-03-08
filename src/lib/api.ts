@@ -16,31 +16,12 @@ interface SessionPayload {
   email?: string
 }
 
-interface InvitePayload {
-  id: string
-  inviteeEmail: string
-  status: 'pending' | 'accepted' | 'cancelled' | 'expired'
-  createdAt: string
-  expiresAt: string
-  acceptedAt: string | null
-}
-
-interface InviteListPayload {
-  ok: boolean
-  invites: InvitePayload[]
-}
-
-interface ActivityPayload {
-  id: string
-  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added'
-  at: string
-  title: string
-  description: string
-}
-
-interface ActivityListPayload {
-  ok: boolean
-  activity: ActivityPayload[]
+interface PaginationPayload {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+  hasNext: boolean
 }
 
 export interface SessionState {
@@ -206,13 +187,80 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return payload as T
 }
 
+async function fetchAllPages<T>(url: string, key?: string): Promise<T[]> {
+  const pageSize = 50
+  const all: T[] = []
+  let page = 1
+
+  while (page <= 200) {
+    const separator = url.includes('?') ? '&' : '?'
+    const payload = await request<unknown>(`${url}${separator}page=${page}&pageSize=${pageSize}`)
+    const items = extractArray<T>(payload, key)
+    all.push(...items)
+
+    const pagination = extractPagination(payload)
+    if (!pagination || !pagination.hasNext) {
+      break
+    }
+
+    page += 1
+  }
+
+  return all
+}
+
+function extractArray<T>(payload: unknown, key?: string): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[]
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return []
+  }
+
+  const record = payload as Record<string, unknown>
+  if (Array.isArray(record.items)) {
+    return record.items as T[]
+  }
+
+  if (key && Array.isArray(record[key])) {
+    return record[key] as T[]
+  }
+
+  return []
+}
+
+function extractPagination(payload: unknown): PaginationPayload | null {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+
+  const pagination = (payload as { pagination?: unknown }).pagination
+  if (!pagination || typeof pagination !== 'object') {
+    return null
+  }
+
+  const value = pagination as Partial<PaginationPayload>
+  if (
+    typeof value.page !== 'number'
+    || typeof value.pageSize !== 'number'
+    || typeof value.total !== 'number'
+    || typeof value.totalPages !== 'number'
+    || typeof value.hasNext !== 'boolean'
+  ) {
+    return null
+  }
+
+  return value as PaginationPayload
+}
+
 export async function fetchGifts(): Promise<GiftItem[]> {
   if (USE_MOCK_DATA) {
     const gifts = readMockGifts()
     return gifts.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   }
 
-  return request<GiftItem[]>(BASE)
+  return fetchAllPages<GiftItem>(BASE)
 }
 
 export async function createGift(data: GiftFormData): Promise<GiftItem> {
@@ -274,7 +322,7 @@ export async function fetchFoodOptions(): Promise<FoodOption[]> {
     return options.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   }
 
-  return request<FoodOption[]>(FOOD_BASE)
+  return fetchAllPages<FoodOption>(FOOD_BASE)
 }
 
 export async function createFoodOption(data: FoodOptionFormData): Promise<FoodOption> {
@@ -398,8 +446,8 @@ export async function acceptCoupleInvite(token: string): Promise<void> {
 export async function fetchCoupleInvites(): Promise<CoupleInvite[]> {
   if (USE_MOCK_DATA) return []
 
-  const payload = await request<InviteListPayload>('/api/couple/invite')
-  return payload.invites ?? []
+  const invites = await fetchAllPages<CoupleInvite>('/api/couple/invite', 'invites')
+  return invites
 }
 
 export async function resendCoupleInvite(inviteId: string): Promise<void> {
@@ -423,6 +471,6 @@ export async function cancelCoupleInvite(inviteId: string): Promise<void> {
 export async function fetchCoupleActivity(): Promise<CoupleActivity[]> {
   if (USE_MOCK_DATA) return []
 
-  const payload = await request<ActivityListPayload>('/api/couple/activity')
-  return payload.activity ?? []
+  const activity = await fetchAllPages<CoupleActivity>('/api/couple/activity', 'activity')
+  return activity
 }

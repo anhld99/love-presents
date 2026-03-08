@@ -518,7 +518,10 @@ body {
   top: 50%;
   width: 20px;
   max-height: 128px;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   font-weight: 800;
   color: var(--ink-700);
   line-height: 1.05;
@@ -527,6 +530,7 @@ body {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   letter-spacing: 0.2px;
+  transform-origin: center center;
 }
 
 .wheel-hover-slice {

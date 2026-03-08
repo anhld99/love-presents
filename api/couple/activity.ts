@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { ensureAppUser, getMembershipByUserId, requireSessionUser } from '../_couples.js'
+import { parsePagination, toPaginationMeta } from '../_pagination.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 
 interface CoupleRow {
@@ -51,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await ensureAppUser(user)
     const membership = await getMembershipByUserId(user.userId)
+    const { page, pageSize } = parsePagination(req)
 
     if (!membership) {
       return res.status(403).json({ error: 'Bạn cần tham gia một couple trước khi xem hoạt động' })
@@ -68,14 +70,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from('couple_invites')
         .select('id, invitee_email, created_at, accepted_at')
         .eq('couple_id', membership.coupleId)
-        .order('created_at', { ascending: false })
-        .limit(20),
+        .order('created_at', { ascending: false }),
       supabase
         .from('gifts')
         .select('id, name, created_at, created_by')
         .eq('couple_id', membership.coupleId)
-        .order('created_at', { ascending: false })
-        .limit(20),
+        .order('created_at', { ascending: false }),
       supabase
         .from('couple_members')
         .select('user_id, role')
@@ -151,9 +151,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     activity.sort((a, b) => b.at.localeCompare(a.at))
 
+    const from = (page - 1) * pageSize
+    const items = activity.slice(from, from + pageSize)
+
     return res.status(200).json({
       ok: true,
-      activity: activity.slice(0, 40),
+      items,
+      activity: items,
+      pagination: toPaginationMeta(activity.length, page, pageSize),
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Không thể tải hoạt động couple'

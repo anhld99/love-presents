@@ -17,6 +17,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
   const [error, setError] = useState('')
 
   const [priceLevel, setPriceLevel] = useState<FoodPriceLevel>('binh_dan')
+  const [listTab, setListTab] = useState<FoodPriceLevel>('binh_dan')
   const [spinning, setSpinning] = useState(false)
   const [wheelRotation, setWheelRotation] = useState(0)
   const [result, setResult] = useState<FoodOption | null>(null)
@@ -79,16 +80,22 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
   }, [filtered.length])
 
   const labelOffsetPx = useMemo(() => {
-    if (filtered.length <= 8) return 114
-    if (filtered.length <= 16) return 118
+    if (filtered.length <= 6) return 90
+    if (filtered.length <= 12) return 96
+    if (filtered.length <= 16) return 112
     return 121
   }, [filtered.length])
 
   const labelMaxChars = useMemo(() => {
-    if (filtered.length <= 8) return 18
+    if (filtered.length <= 8) return 24
+    if (filtered.length <= 12) return 20
     if (filtered.length <= 14) return 14
     return 11
   }, [filtered.length])
+
+  const listItems = useMemo(() => {
+    return options.filter(item => item.priceLevel === listTab)
+  }, [options, listTab])
 
   const hoveredOption = hoverInfo ? filtered[hoverInfo.index] : null
   const showHoverTooltip = !!hoverInfo
@@ -152,6 +159,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
         priceLevel: newPriceLevel,
       })
       setOptions(prev => [created, ...prev])
+      setListTab(created.priceLevel)
       setName('')
       setRestaurantAddress('')
       setNewPriceLevel('binh_dan')
@@ -411,6 +419,23 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
         <h3>Danh sách món ăn</h3>
         <p className="page-subtitle">Tất cả món có trong vòng quay của couple.</p>
 
+        <div className="food-tier-switch">
+          <button
+            type="button"
+            className={`food-tier-btn${listTab === 'binh_dan' ? ' active' : ''}`}
+            onClick={() => setListTab('binh_dan')}
+          >
+            Bình dân ({cheapCount})
+          </button>
+          <button
+            type="button"
+            className={`food-tier-btn${listTab === 'dat_do' ? ' active' : ''}`}
+            onClick={() => setListTab('dat_do')}
+          >
+            Đắt đỏ ({priceyCount})
+          </button>
+        </div>
+
         {loading && (
           <div className="spinner-wrap">
             <div className="spinner" />
@@ -427,9 +452,17 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
           </div>
         )}
 
-        {!loading && !error && options.length > 0 && (
+        {!loading && !error && options.length > 0 && listItems.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-state-icon">🔎</div>
+            <h3>Chưa có món ở mức {labelLevel(listTab)}</h3>
+            <p>{isAnh ? 'Bạn có thể thêm món mới cho tab này.' : 'Nhờ anh thêm món để quay ở mức này.'}</p>
+          </div>
+        )}
+
+        {!loading && !error && listItems.length > 0 && (
           <div className="food-list">
-            {options.map(item => (
+            {listItems.map(item => (
               <div key={item.id} className="food-row">
                 <div>
                   <p className="food-name">{item.name}</p>

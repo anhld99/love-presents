@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { ensureAppUser, getMembershipByUserId, requireSessionUser } from '../_couples.js'
+import { parsePagination, toPaginationMeta } from '../_pagination.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 import type { FoodOptionFormData } from '../../src/types/food.js'
 
@@ -26,15 +27,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = getSupabaseAdmin()
 
     if (req.method === 'GET') {
-      const { data, error } = await supabase
+      const { page, pageSize, from, to } = parsePagination(req)
+      const levelQuery = parseLevel(req.query.priceLevel)
+
+      let query = supabase
         .from('food_options')
-        .select('id, name, restaurant_address, price_level, created_at, updated_at')
+        .select('id, name, restaurant_address, price_level, created_at, updated_at', { count: 'exact' })
         .eq('couple_id', membership.coupleId)
         .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (levelQuery) {
+        query = query.eq('price_level', levelQuery)
+      }
+
+      const { data, count, error } = await query
 
       if (error) return res.status(500).json({ error: error.message })
       const payload = ((data ?? []) as FoodRow[]).map(toFoodOption)
-      return res.status(200).json(payload)
+      return res.status(200).json({
+        items: payload,
+        pagination: toPaginationMeta(count ?? 0, page, pageSize),
+      })
     }
 
     if (req.method === 'POST') {
@@ -83,4 +97,12 @@ function toFoodOption(row: FoodRow) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+function parseLevel(value: string | string[] | undefined): 'binh_dan' | 'dat_do' | null {
+  const first = Array.isArray(value) ? value[0] : value
+  if (first === 'binh_dan' || first === 'dat_do') {
+    return first
+  }
+  return null
 }

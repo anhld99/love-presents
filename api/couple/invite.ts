@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { getAppBaseUrl } from '../_appUrl.js'
 import { ensureAppUser, getMembershipByUserId, normalizeEmail, requireSessionUser } from '../_couples.js'
 import { sendInviteEmail } from '../_mailer.js'
+import { parsePagination, toPaginationMeta } from '../_pagination.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 
 interface InviteBody {
@@ -155,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function listInvites(req: VercelRequest, res: VercelResponse, coupleId: string) {
   const supabase = getSupabaseAdmin()
   const now = new Date().toISOString()
+  const { page, pageSize, from, to } = parsePagination(req)
 
   await supabase
     .from('couple_invites')
@@ -163,12 +165,12 @@ async function listInvites(req: VercelRequest, res: VercelResponse, coupleId: st
     .eq('status', 'pending')
     .lte('expires_at', now)
 
-  const { data, error } = await supabase
+  const { data, count, error } = await supabase
     .from('couple_invites')
-    .select('id, invitee_email, status, created_at, expires_at, accepted_at')
+    .select('id, invitee_email, status, created_at, expires_at, accepted_at', { count: 'exact' })
     .eq('couple_id', coupleId)
     .order('created_at', { ascending: false })
-    .limit(30)
+    .range(from, to)
 
   if (error) {
     return res.status(500).json({ error: error.message })
@@ -187,6 +189,7 @@ async function listInvites(req: VercelRequest, res: VercelResponse, coupleId: st
     ok: true,
     appBaseUrl: getAppBaseUrl(req),
     invites,
+    pagination: toPaginationMeta(count ?? 0, page, pageSize),
   })
 }
 
