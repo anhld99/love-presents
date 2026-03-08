@@ -6,6 +6,10 @@ import { LoginPage } from './pages/LoginPage'
 import { AddGiftPage } from './pages/AddGiftPage'
 import { GiftListPage } from './pages/GiftListPage'
 import { ToastProvider } from './components/ToastProvider'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
+import { InviteAcceptPage } from './pages/InviteAcceptPage'
+import { CouplePage } from './pages/CouplePage'
+import { acceptCoupleInvite, createCouple, sendCoupleInvite } from './lib/api'
 
 type ThemeVariant = 'romantic' | 'anniversary'
 
@@ -22,10 +26,14 @@ function Topbar({
   onLogout,
   theme,
   onToggleTheme,
+  canViewList,
+  hasCouple,
 }: {
   onLogout: () => void
   theme: ThemeVariant
   onToggleTheme: () => void
+  canViewList: boolean
+  hasCouple: boolean
 }) {
   return (
     <header className="topbar">
@@ -35,11 +43,18 @@ function Topbar({
           <span className="logo-text">Love Presents</span>
         </a>
         <nav className="topbar-nav">
-          <NavLink to="/gifts" className={({ isActive }) => isActive ? 'active' : ''}>
-            <span>💌 Danh sách</span>
-          </NavLink>
-          <NavLink to="/add" className={({ isActive }) => isActive ? 'active' : ''}>
-            <span>✨ Thêm quà</span>
+          {hasCouple && canViewList && (
+            <NavLink to="/gifts" className={({ isActive }) => isActive ? 'active' : ''}>
+              <span>💌 Danh sách</span>
+            </NavLink>
+          )}
+          {hasCouple && (
+            <NavLink to="/add" className={({ isActive }) => isActive ? 'active' : ''}>
+              <span>✨ Thêm quà</span>
+            </NavLink>
+          )}
+          <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span>💞 Couple</span>
           </NavLink>
           <button className="topbar-theme" onClick={onToggleTheme}>
             {theme === 'anniversary' ? '🎀 Lãng mạn' : '🎉 Kỷ niệm'}
@@ -55,27 +70,31 @@ function Topbar({
 
 function MobileDock({
   onLogout,
-  theme,
-  onToggleTheme,
+  canViewList,
+  hasCouple,
 }: {
   onLogout: () => void
-  theme: ThemeVariant
-  onToggleTheme: () => void
+  canViewList: boolean
+  hasCouple: boolean
 }) {
   return (
-    <nav className="mobile-dock" aria-label="Điều hướng nhanh">
-      <NavLink to="/gifts" className={({ isActive }) => isActive ? 'active' : ''}>
-        <span className="mobile-dock-icon">💌</span>
-        <span className="mobile-dock-label">Danh sách</span>
+    <nav className={`mobile-dock${canViewList && hasCouple ? '' : ' no-list'}`} aria-label="Điều hướng nhanh">
+      {canViewList && hasCouple && (
+        <NavLink to="/gifts" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span className="mobile-dock-icon">💌</span>
+          <span className="mobile-dock-label">Danh sách</span>
+        </NavLink>
+      )}
+      {hasCouple && (
+        <NavLink to="/add" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span className="mobile-dock-icon">✨</span>
+          <span className="mobile-dock-label">Thêm quà</span>
+        </NavLink>
+      )}
+      <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
+        <span className="mobile-dock-icon">💞</span>
+        <span className="mobile-dock-label">Couple</span>
       </NavLink>
-      <NavLink to="/add" className={({ isActive }) => isActive ? 'active' : ''}>
-        <span className="mobile-dock-icon">✨</span>
-        <span className="mobile-dock-label">Thêm quà</span>
-      </NavLink>
-      <button className="mobile-dock-btn" onClick={onToggleTheme}>
-        <span className="mobile-dock-icon">{theme === 'anniversary' ? '🎀' : '🎉'}</span>
-        <span className="mobile-dock-label">Theme</span>
-      </button>
       <button className="mobile-dock-btn" onClick={onLogout}>
         <span className="mobile-dock-icon">🌙</span>
         <span className="mobile-dock-label">Thoát</span>
@@ -88,50 +107,129 @@ function AuthenticatedApp({
   onLogout,
   theme,
   onToggleTheme,
+  canViewList,
+  hasCouple,
+  role,
+  email,
+  onCreateCouple,
+  onInviteEm,
 }: {
   onLogout: () => void
   theme: ThemeVariant
   onToggleTheme: () => void
+  canViewList: boolean
+  hasCouple: boolean
+  role: 'anh' | 'em' | null
+  email: string | null
+  onCreateCouple: (name: string) => Promise<void>
+  onInviteEm: (email: string) => Promise<void>
 }) {
   return (
     <div className="app-shell">
       <div className="bg-orb orb-1" aria-hidden="true" />
       <div className="bg-orb orb-2" aria-hidden="true" />
       <div className="bg-orb orb-3" aria-hidden="true" />
-      <Topbar onLogout={onLogout} theme={theme} onToggleTheme={onToggleTheme} />
+      <Topbar
+        onLogout={onLogout}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        canViewList={canViewList}
+        hasCouple={hasCouple}
+      />
       <Routes>
-        <Route path="/gifts" element={<GiftListPage />} />
-        <Route path="/add" element={<AddGiftPage />} />
-        <Route path="*" element={<Navigate to="/gifts" replace />} />
+        <Route
+          path="/gifts"
+          element={hasCouple ? (canViewList ? <GiftListPage /> : <Navigate to="/add" replace />) : <Navigate to="/couple" replace />}
+        />
+        <Route path="/add" element={hasCouple ? <AddGiftPage /> : <Navigate to="/couple" replace />} />
+        <Route
+          path="/couple"
+          element={
+            <CouplePage
+              hasCouple={hasCouple}
+              role={role}
+              email={email}
+              onCreateCouple={onCreateCouple}
+              onInviteEm={onInviteEm}
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to={!hasCouple ? '/couple' : canViewList ? '/gifts' : '/add'} replace />} />
       </Routes>
-      <MobileDock onLogout={onLogout} theme={theme} onToggleTheme={onToggleTheme} />
+      <MobileDock
+        onLogout={onLogout}
+        canViewList={canViewList}
+        hasCouple={hasCouple}
+      />
     </div>
   )
 }
 
 function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme: () => void }) {
-  const { authenticated, checking, login, logout } = useAuth()
+  const {
+    authenticated,
+    checking,
+    startGoogleLogin,
+    finishGoogleLogin,
+    refreshSession,
+    logout,
+    role,
+    hasCouple,
+    email,
+  } = useAuth()
 
-  if (checking) {
-    return (
+  const canViewList = role === 'anh'
+
+  const handleCreateCouple = useCallback(async (name: string) => {
+    await createCouple(name)
+    await refreshSession()
+  }, [refreshSession])
+
+  const handleInviteEm = useCallback(async (inviteEmail: string) => {
+    await sendCoupleInvite(inviteEmail)
+  }, [])
+
+  const fallback = checking
+    ? (
       <div className="spinner-wrap spinner-wrap-fullscreen">
         <div className="spinner" />
       </div>
-    )
-  }
-
-  if (!authenticated) {
-    return <LoginPage onLogin={login} theme={theme} onToggleTheme={onToggleTheme} />
-  }
+      )
+    : authenticated
+      ? (
+        <GiftsProvider canReadList={hasCouple && canViewList}>
+          <AuthenticatedApp
+            onLogout={() => { void logout() }}
+            theme={theme}
+            onToggleTheme={onToggleTheme}
+            canViewList={canViewList}
+            hasCouple={hasCouple}
+            role={role}
+            email={email}
+            onCreateCouple={handleCreateCouple}
+            onInviteEm={handleInviteEm}
+          />
+        </GiftsProvider>
+        )
+      : <LoginPage onLogin={() => startGoogleLogin('/')} theme={theme} onToggleTheme={onToggleTheme} />
 
   return (
-    <GiftsProvider>
-      <AuthenticatedApp
-        onLogout={() => { void logout() }}
-        theme={theme}
-        onToggleTheme={onToggleTheme}
+    <Routes>
+      <Route path="/auth/callback" element={<AuthCallbackPage onComplete={finishGoogleLogin} />} />
+      <Route
+        path="/invite/accept"
+        element={
+          <InviteAcceptPage
+            authenticated={authenticated}
+            checking={checking}
+            onStartGoogleLogin={startGoogleLogin}
+            onAcceptInvite={acceptCoupleInvite}
+            onRefreshSession={refreshSession}
+          />
+        }
       />
-    </GiftsProvider>
+      <Route path="*" element={fallback} />
+    </Routes>
   )
 }
 

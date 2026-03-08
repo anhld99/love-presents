@@ -4,6 +4,22 @@ const BASE = '/api/gifts'
 const USE_MOCK_DATA = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA === 'true'
 const MOCK_STORAGE_KEY = 'love-presents:mock-gifts'
 
+export type UserRole = 'anh' | 'em'
+
+interface SessionPayload {
+  ok: boolean
+  role?: UserRole | null
+  hasCouple?: boolean
+  email?: string
+}
+
+export interface SessionState {
+  authenticated: boolean
+  role: UserRole | null
+  hasCouple: boolean
+  email: string | null
+}
+
 const MOCK_SEED_GIFTS: GiftItem[] = [
   {
     id: 'mock-1',
@@ -160,13 +176,27 @@ export async function deleteGift(id: string): Promise<void> {
   return request<void>(`${BASE}/${id}`, { method: 'DELETE' })
 }
 
-export async function login(password: string): Promise<void> {
+export async function completeGoogleLogin(accessToken: string): Promise<SessionState> {
   if (USE_MOCK_DATA) {
-    if (!password.trim()) throw new Error('Vui lòng nhập mật khẩu')
-    return
+    return {
+      authenticated: true,
+      role: 'anh',
+      hasCouple: true,
+      email: 'mock@example.com',
+    }
   }
 
-  return request<void>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) })
+  const payload = await request<SessionPayload>('/api/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ accessToken }),
+  })
+
+  return {
+    authenticated: true,
+    role: payload.role ?? null,
+    hasCouple: payload.hasCouple ?? false,
+    email: payload.email ?? null,
+  }
 }
 
 export async function logout(): Promise<void> {
@@ -175,13 +205,57 @@ export async function logout(): Promise<void> {
   return request<void>('/api/auth/logout', { method: 'POST' })
 }
 
-export async function checkSession(): Promise<boolean> {
-  if (USE_MOCK_DATA) return true
+export async function checkSession(): Promise<SessionState> {
+  if (USE_MOCK_DATA) {
+    return {
+      authenticated: true,
+      role: 'anh',
+      hasCouple: true,
+      email: 'mock@example.com',
+    }
+  }
 
   try {
-    await request<void>('/api/auth/session')
-    return true
+    const payload = await request<SessionPayload>('/api/auth/session')
+    return {
+      authenticated: true,
+      role: payload.role ?? null,
+      hasCouple: payload.hasCouple ?? false,
+      email: payload.email ?? null,
+    }
   } catch {
-    return false
+    return {
+      authenticated: false,
+      role: null,
+      hasCouple: false,
+      email: null,
+    }
   }
+}
+
+export async function createCouple(name: string): Promise<void> {
+  if (USE_MOCK_DATA) return
+
+  await request<void>('/api/couple', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export async function sendCoupleInvite(email: string): Promise<void> {
+  if (USE_MOCK_DATA) return
+
+  await request<void>('/api/couple/invite', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function acceptCoupleInvite(token: string): Promise<void> {
+  if (USE_MOCK_DATA) return
+
+  await request<void>('/api/couple/accept', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  })
 }

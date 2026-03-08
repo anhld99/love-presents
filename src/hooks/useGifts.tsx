@@ -3,12 +3,24 @@ import type { GiftItem, GiftFormData } from '../types/gift'
 import { fetchGifts, createGift, updateGift, deleteGift } from '../lib/api'
 import { GiftsContext } from './gifts-context'
 
-export function GiftsProvider({ children }: { children: ReactNode }) {
+interface GiftsProviderProps {
+  children: ReactNode
+  canReadList?: boolean
+}
+
+export function GiftsProvider({ children, canReadList = true }: GiftsProviderProps) {
   const [gifts, setGifts] = useState<GiftItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(canReadList)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (!canReadList) {
+      setGifts([])
+      setError(null)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -19,7 +31,7 @@ export function GiftsProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [canReadList])
 
   useEffect(() => { void load() }, [load])
 

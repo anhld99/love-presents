@@ -722,6 +722,10 @@ body {
   gap: 6px;
 }
 
+.mobile-dock.no-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .mobile-dock a,
 .mobile-dock-btn {
   border: 0;

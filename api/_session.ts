@@ -5,6 +5,11 @@ import { createHmac, timingSafeEqual } from 'crypto'
 const SESSION_COOKIE = 'lp_session'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7 // 7 days
 
+interface SessionData {
+  userId: string
+  email: string
+}
+
 function sign(value: string, secret: string): string {
   const hmac = createHmac('sha256', secret)
   hmac.update(value)
@@ -27,9 +32,29 @@ function verify(signed: string, secret: string): string | null {
   return value
 }
 
-export function createSessionCookie(): string {
+function parseSessionPayload(payload: string): SessionData | null {
+  const parts = payload.split(':')
+
+  if (parts[0] !== 'auth') return null
+  if (parts.length !== 3) return null
+
+  try {
+    const decoded = Buffer.from(parts[1], 'base64url').toString('utf8')
+    const parsed = JSON.parse(decoded) as { userId?: unknown, email?: unknown }
+    if (typeof parsed.userId !== 'string' || !parsed.userId) return null
+    if (typeof parsed.email !== 'string' || !parsed.email) return null
+    return { userId: parsed.userId, email: parsed.email }
+  } catch {
+    return null
+  }
+}
+
+export function createSessionCookie(session: SessionData): string {
   const secret = process.env.SESSION_SECRET!
-  const payload = `auth:${Date.now()}`
+  const encoded = Buffer
+    .from(JSON.stringify({ userId: session.userId, email: session.email }), 'utf8')
+    .toString('base64url')
+  const payload = `auth:${encoded}:${Date.now()}`
   const signed = sign(payload, secret)
   return serialize(SESSION_COOKIE, signed, {
     httpOnly: true,
@@ -50,13 +75,26 @@ export function clearSessionCookie(): string {
   })
 }
 
-export function isAuthenticated(req: VercelRequest): boolean {
+export function getSession(req: VercelRequest): SessionData | null {
   const secret = process.env.SESSION_SECRET
-  if (!secret) return false
+  if (!secret) return null
+
   const cookies = parse(req.headers.cookie ?? '')
   const raw = cookies[SESSION_COOKIE]
-  if (!raw) return false
-  return verify(raw, secret) !== null
+  if (!raw) return null
+
+  const payload = verify(raw, secret)
+  if (!payload) return null
+
+  return parseSessionPayload(payload)
+}
+
+export function isAuthenticated(req: VercelRequest): boolean {
+  return getSession(req) !== null
+}
+
+export function getSessionUser(req: VercelRequest): SessionData | null {
+  return getSession(req)
 }
 
 export function requireAuth(req: VercelRequest, res: VercelResponse): boolean {
