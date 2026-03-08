@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { GiftCard } from '../components/GiftCard'
 import { Filters } from '../components/Filters'
-import { useGifts } from '../hooks/useGifts'
-import { useToast } from '../components/ToastProvider'
+import { useGifts } from '../hooks/useGiftsContext'
+import { useToast } from '../components/useToast'
 import type { GiftFilters, GiftFormData } from '../types/gift'
 
 const DEFAULT_FILTERS: GiftFilters = {

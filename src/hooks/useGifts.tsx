@@ -1,19 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { GiftItem, GiftFormData } from '../types/gift'
 import { fetchGifts, createGift, updateGift, deleteGift } from '../lib/api'
-
-interface GiftsCtx {
-  gifts: GiftItem[]
-  loading: boolean
-  error: string | null
-  addGift: (data: GiftFormData) => Promise<void>
-  toggleGifted: (id: string, isGifted: boolean) => Promise<void>
-  removeGift: (id: string) => Promise<void>
-  editGift: (id: string, data: GiftFormData) => Promise<void>
-  refresh: () => Promise<void>
-}
-
-const GiftsContext = createContext<GiftsCtx | null>(null)
+import { GiftsContext } from './gifts-context'
 
 export function GiftsProvider({ children }: { children: ReactNode }) {
   const [gifts, setGifts] = useState<GiftItem[]>([])
@@ -60,10 +48,4 @@ export function GiftsProvider({ children }: { children: ReactNode }) {
       {children}
     </GiftsContext.Provider>
   )
-}
-
-export function useGifts(): GiftsCtx {
-  const ctx = useContext(GiftsContext)
-  if (!ctx) throw new Error('useGifts must be used inside GiftsProvider')
-  return ctx
 }

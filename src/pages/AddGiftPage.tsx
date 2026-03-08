@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GiftForm } from '../components/GiftForm'
-import { useGifts } from '../hooks/useGifts'
-import { useToast } from '../components/ToastProvider'
+import { useGifts } from '../hooks/useGiftsContext'
+import { useToast } from '../components/useToast'
 import type { GiftFormData } from '../types/gift'
 
 const CONFETTI_CLASSES = [
