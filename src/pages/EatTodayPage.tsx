@@ -315,7 +315,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
                     className="wheel-label"
                     style={{
                       fontSize: `${labelFontRem}rem`,
-                      transform: `translate(-50%, -50%) rotate(${labelRotation}deg) translateY(-${labelOffsetPx}px)`,
+                      transform: `translate(-50%, -50%) rotate(${labelRotation}deg) translateY(-${labelOffsetPx}px) rotate(-${labelRotation}deg)`,
                     }}
                   >
                     {trimLabel(item.name, labelMaxChars)}
