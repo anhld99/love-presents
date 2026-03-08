@@ -9,6 +9,7 @@ interface EatTodayPageProps {
 
 const WHEEL_COLORS = ['#ffd6e4', '#ffe7c7', '#ffeef4', '#f5ddff', '#ffe2d8', '#fff0ca']
 const MAX_WHEEL_LABELS = 12
+const LIST_PAGE_SIZE = 8
 
 export function EatTodayPage({ role }: EatTodayPageProps) {
   const { showToast } = useToast()
@@ -26,6 +27,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
   const [name, setName] = useState('')
   const [restaurantAddress, setRestaurantAddress] = useState('')
   const [newPriceLevel, setNewPriceLevel] = useState<FoodPriceLevel>('binh_dan')
+  const [listPageByTab, setListPageByTab] = useState<Record<FoodPriceLevel, number>>({ binh_dan: 1, dat_do: 1 })
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState('')
 
@@ -79,16 +81,15 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
     return 0.54
   }, [filtered.length])
 
-  const labelOffsetPx = useMemo(() => {
-    if (filtered.length <= 6) return 90
-    if (filtered.length <= 12) return 96
-    if (filtered.length <= 16) return 112
-    return 121
+  const labelRadiusPct = useMemo(() => {
+    if (filtered.length <= 6) return 34
+    if (filtered.length <= 10) return 36
+    return 38
   }, [filtered.length])
 
   const labelMaxChars = useMemo(() => {
-    if (filtered.length <= 8) return 24
-    if (filtered.length <= 12) return 20
+    if (filtered.length <= 8) return 18
+    if (filtered.length <= 12) return 14
     if (filtered.length <= 14) return 14
     return 11
   }, [filtered.length])
@@ -96,6 +97,14 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
   const listItems = useMemo(() => {
     return options.filter(item => item.priceLevel === listTab)
   }, [options, listTab])
+
+  const listTotalPages = Math.max(1, Math.ceil(listItems.length / LIST_PAGE_SIZE))
+  const listPage = Math.min(listPageByTab[listTab] ?? 1, listTotalPages)
+
+  const listItemsPaged = useMemo(() => {
+    const from = (listPage - 1) * LIST_PAGE_SIZE
+    return listItems.slice(from, from + LIST_PAGE_SIZE)
+  }, [listItems, listPage])
 
   const hoveredOption = hoverInfo ? filtered[hoverInfo.index] : null
   const showHoverTooltip = !!hoverInfo
@@ -160,6 +169,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
       })
       setOptions(prev => [created, ...prev])
       setListTab(created.priceLevel)
+      setListPageByTab(prev => ({ ...prev, [created.priceLevel]: 1 }))
       setName('')
       setRestaurantAddress('')
       setNewPriceLevel('binh_dan')
@@ -175,7 +185,13 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
     setDeletingId(id)
     try {
       await deleteFoodOption(id)
-      setOptions(prev => prev.filter(item => item.id !== id))
+      setOptions(prev => {
+        const next = prev.filter(item => item.id !== id)
+        const nextCount = next.filter(item => item.priceLevel === listTab).length
+        const nextPages = Math.max(1, Math.ceil(nextCount / LIST_PAGE_SIZE))
+        setListPageByTab(state => ({ ...state, [listTab]: Math.min(state[listTab] ?? 1, nextPages) }))
+        return next
+      })
       setResult(prev => (prev?.id === id ? null : prev))
       showToast('Đã xoá món ăn')
     } catch (err) {
@@ -260,6 +276,11 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
     if (hoverInfo) setHoverInfo(null)
   }
 
+  function handleChangeListPage(nextPage: number) {
+    if (nextPage < 1 || nextPage > listTotalPages) return
+    setListPageByTab(prev => ({ ...prev, [listTab]: nextPage }))
+  }
+
   return (
     <main className="page">
       <section className="page-hero page-hero-compact">
@@ -308,14 +329,18 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
                 const item = filtered[itemIndex]
                 const slice = 360 / filtered.length
                 const centerDeg = itemIndex * slice + slice / 2
-                const labelRotation = centerDeg > 90 && centerDeg < 270 ? centerDeg + 180 : centerDeg
+                const rad = (centerDeg - 90) * Math.PI / 180
+                const left = 50 + Math.cos(rad) * labelRadiusPct
+                const top = 50 + Math.sin(rad) * labelRadiusPct
                 return (
                   <span
                     key={item.id}
                     className="wheel-label"
                     style={{
                       fontSize: `${labelFontRem}rem`,
-                      transform: `translate(-50%, -50%) rotate(${labelRotation}deg) translateY(-${labelOffsetPx}px) rotate(-${labelRotation}deg)`,
+                      left: `${left}%`,
+                      top: `${top}%`,
+                      transform: 'translate(-50%, -50%)',
                     }}
                   >
                     {trimLabel(item.name, labelMaxChars)}
@@ -462,7 +487,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 
         {!loading && !error && listItems.length > 0 && (
           <div className="food-list">
-            {listItems.map(item => (
+            {listItemsPaged.map(item => (
               <div key={item.id} className="food-row">
                 <div>
                   <p className="food-name">{item.name}</p>
@@ -487,6 +512,32 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {!loading && !error && listItems.length > LIST_PAGE_SIZE && (
+          <div className="list-pagination">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={listPage <= 1}
+              onClick={() => {
+                handleChangeListPage(listPage - 1)
+              }}
+            >
+              Trước
+            </button>
+            <span className="pagination-meta">Trang {listPage}/{listTotalPages}</span>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={listPage >= listTotalPages}
+              onClick={() => {
+                handleChangeListPage(listPage + 1)
+              }}
+            >
+              Sau
+            </button>
           </div>
         )}
       </div>

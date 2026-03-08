@@ -516,7 +516,7 @@ body {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 98px;
+  width: 84px;
   max-height: 52px;
   display: block;
   text-align: center;
@@ -682,6 +682,20 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.list-pagination {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pagination-meta {
+  font-size: 0.82rem;
+  color: var(--ink-500);
+  font-weight: 700;
 }
 
 .form-grid {
@@ -1645,6 +1659,10 @@ body {
   .wheel-label {
     width: 78px;
     max-height: 46px;
+  }
+
+  .list-pagination {
+    justify-content: flex-start;
   }
 }
 
