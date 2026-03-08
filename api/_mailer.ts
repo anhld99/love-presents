@@ -1,4 +1,5 @@
 import { normalizeEmail } from './_couples.js'
+import nodemailer from 'nodemailer'
 
 interface InviteEmailPayload {
   inviteeEmail: string
@@ -8,11 +9,12 @@ interface InviteEmailPayload {
 }
 
 export async function sendInviteEmail(payload: InviteEmailPayload): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY
+  const smtpUser = process.env.GMAIL_SMTP_USER
+  const smtpAppPassword = process.env.GMAIL_SMTP_APP_PASSWORD
   const from = process.env.INVITE_EMAIL_FROM
 
-  if (!apiKey || !from) {
-    throw new Error('Thiếu RESEND_API_KEY hoặc INVITE_EMAIL_FROM để gửi email mời')
+  if (!smtpUser || !smtpAppPassword || !from) {
+    throw new Error('Thiếu GMAIL_SMTP_USER, GMAIL_SMTP_APP_PASSWORD hoặc INVITE_EMAIL_FROM để gửi email mời')
   }
 
   const inviteeEmail = normalizeEmail(payload.inviteeEmail)
@@ -33,23 +35,27 @@ export async function sendInviteEmail(payload: InviteEmailPayload): Promise<void
     </div>
   `
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: smtpUser,
+      pass: smtpAppPassword,
     },
-    body: JSON.stringify({
-      from,
-      to: [inviteeEmail],
-      subject,
-      html,
-    }),
   })
 
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Gửi email thất bại (${response.status}): ${body}`)
+  try {
+    await transporter.sendMail({
+      from,
+      to: inviteeEmail,
+      subject,
+      html,
+      replyTo: inviterEmail,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    throw new Error(`Gửi email thất bại: ${message}`)
   }
 }
 
