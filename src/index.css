@@ -365,6 +365,89 @@ body {
   font-weight: 700;
 }
 
+.couple-card + .couple-card {
+  margin-top: 14px;
+}
+
+.invite-list,
+.activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.invite-row,
+.activity-row {
+  border-radius: 12px;
+  border: 1px solid rgba(214, 145, 168, 0.22);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 11px 12px;
+}
+
+.invite-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.invite-row-main {
+  min-width: 0;
+}
+
+.invite-email,
+.activity-title {
+  color: var(--ink-900);
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.invite-meta,
+.activity-meta,
+.activity-desc {
+  font-size: 0.82rem;
+  color: var(--ink-500);
+}
+
+.activity-desc {
+  margin-top: 3px;
+}
+
+.invite-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.invite-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  font-weight: 800;
+  padding: 5px 9px;
+}
+
+.status-pending {
+  background: rgba(255, 239, 213, 0.95);
+  color: #9f5a0b;
+}
+
+.status-accepted {
+  background: rgba(226, 253, 239, 0.95);
+  color: #1f6f46;
+}
+
+.status-cancelled {
+  background: rgba(247, 235, 243, 0.95);
+  color: #6e4b62;
+}
+
+.status-expired {
+  background: rgba(245, 237, 237, 0.95);
+  color: #6d4d4d;
+}
+
 .form-grid {
   display: grid;
   gap: 16px;
@@ -1147,6 +1230,14 @@ body {
 
   .login-card {
     padding: 28px 18px 22px;
+  }
+
+  .invite-row {
+    flex-direction: column;
+  }
+
+  .invite-row-actions {
+    justify-content: flex-start;
   }
 }
 

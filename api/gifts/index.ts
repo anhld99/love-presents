@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { ensureAppUser, getMembershipByUserId, requireSessionUser } from '../_couples.js'
+import { getAppBaseUrl } from '../_appUrl.js'
+import { ensureAppUser, getCoupleMemberEmailByRole, getMembershipByUserId, requireSessionUser } from '../_couples.js'
+import { sendGiftAddedEmail } from '../_mailer.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 import type { GiftFormData } from '../../src/types/gift.js'
 import { toGiftItem, toInsertPayload } from '../_giftMapper.js'
@@ -45,12 +47,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .insert({
           ...toInsertPayload(body),
           couple_id: membership.coupleId,
+          created_by: user.userId,
         })
         .select()
         .single()
 
       if (error) return res.status(500).json({ error: error.message })
-      return res.status(201).json(toGiftItem(data))
+
+      const createdGift = toGiftItem(data)
+
+      if (role === 'em') {
+        const anhEmail = await getCoupleMemberEmailByRole(membership.coupleId, 'anh')
+        if (anhEmail) {
+          try {
+            await sendGiftAddedEmail({
+              anhEmail,
+              emEmail: user.email,
+              giftName: createdGift.name,
+              category: createdGift.category,
+              budgetRange: createdGift.budgetRange,
+              desireLevel: createdGift.desireLevel,
+              sampleUrl: createdGift.sampleUrl,
+              giftListUrl: `${getAppBaseUrl(req)}/gifts`,
+            })
+          } catch (notifyError) {
+            console.error('Failed to notify anh when em added gift', notifyError)
+          }
+        }
+      }
+
+      return res.status(201).json(createdGift)
     }
 
     return res.status(405).json({ error: 'Method not allowed' })

@@ -45,6 +45,7 @@ create unique index if not exists couple_invites_one_pending_per_email
 create table if not exists gifts (
   id           uuid primary key default gen_random_uuid(),
   couple_id    uuid references couples(id) on delete cascade,
+  created_by   uuid references app_users(id) on delete set null,
   name         text not null,
   category     text not null,
   budget_range text not null,
@@ -58,8 +59,14 @@ create table if not exists gifts (
 alter table gifts
   add column if not exists couple_id uuid references couples(id) on delete cascade;
 
+alter table gifts
+  add column if not exists created_by uuid references app_users(id) on delete set null;
+
 create index if not exists gifts_couple_created_idx
   on gifts (couple_id, created_at desc);
+
+create index if not exists gifts_couple_creator_idx
+  on gifts (couple_id, created_by);
 
 -- Auto-update updated_at on row change
 create or replace function update_updated_at()

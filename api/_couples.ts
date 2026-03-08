@@ -19,6 +19,14 @@ interface CoupleMemberRow {
   role: CoupleRole
 }
 
+interface CoupleMemberUserRow {
+  user_id: string
+}
+
+interface AppUserEmailRow {
+  email: string
+}
+
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
@@ -68,4 +76,28 @@ export async function getCoupleMemberCount(coupleId: string): Promise<number> {
 
   if (error) throw new Error(error.message)
   return count ?? 0
+}
+
+export async function getCoupleMemberEmailByRole(coupleId: string, role: CoupleRole): Promise<string | null> {
+  const supabase = getSupabaseAdmin()
+  const { data: member, error: memberError } = await supabase
+    .from('couple_members')
+    .select('user_id')
+    .eq('couple_id', coupleId)
+    .eq('role', role)
+    .maybeSingle<CoupleMemberUserRow>()
+
+  if (memberError) throw new Error(memberError.message)
+  if (!member) return null
+
+  const { data: user, error: userError } = await supabase
+    .from('app_users')
+    .select('email')
+    .eq('id', member.user_id)
+    .maybeSingle<AppUserEmailRow>()
+
+  if (userError) throw new Error(userError.message)
+  if (!user) return null
+
+  return normalizeEmail(user.email)
 }

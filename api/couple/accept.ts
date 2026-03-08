@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { ensureAppUser, getMembershipByUserId, normalizeEmail, requireSessionUser } from '../_couples.js'
+import { getAppBaseUrl } from '../_appUrl.js'
+import { ensureAppUser, getCoupleMemberEmailByRole, getMembershipByUserId, normalizeEmail, requireSessionUser } from '../_couples.js'
+import { sendInviteAcceptedEmail } from '../_mailer.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 
 interface AcceptInviteBody {
@@ -16,6 +18,10 @@ interface InviteRow {
 
 interface RoleRow {
   role: 'anh' | 'em'
+}
+
+interface CoupleNameRow {
+  name: string
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -108,6 +114,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('invitee_email', inviteEmail)
       .eq('status', 'pending')
       .neq('id', invite.id)
+
+    const anhEmail = await getCoupleMemberEmailByRole(invite.couple_id, 'anh')
+    if (anhEmail) {
+      try {
+        const { data: coupleData, error: coupleError } = await supabase
+          .from('couples')
+          .select('name')
+          .eq('id', invite.couple_id)
+          .maybeSingle<CoupleNameRow>()
+
+        if (coupleError) {
+          throw new Error(coupleError.message)
+        }
+
+        await sendInviteAcceptedEmail({
+          anhEmail,
+          emEmail: user.email,
+          coupleName: coupleData?.name ?? 'Love Presents',
+          giftListUrl: `${getAppBaseUrl(req)}/gifts`,
+        })
+      } catch (notifyError) {
+        console.error('Failed to notify anh when invite accepted', notifyError)
+      }
+    }
 
     return res.status(200).json({ ok: true, hasCouple: true, role: 'em' })
   } catch (err) {

@@ -9,7 +9,17 @@ import { ToastProvider } from './components/ToastProvider'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { InviteAcceptPage } from './pages/InviteAcceptPage'
 import { CouplePage } from './pages/CouplePage'
-import { acceptCoupleInvite, createCouple, sendCoupleInvite } from './lib/api'
+import {
+  acceptCoupleInvite,
+  cancelCoupleInvite,
+  createCouple,
+  fetchCoupleActivity,
+  fetchCoupleInvites,
+  resendCoupleInvite,
+  sendCoupleInvite,
+  type CoupleActivity,
+  type CoupleInvite,
+} from './lib/api'
 
 type ThemeVariant = 'romantic' | 'anniversary'
 
@@ -119,6 +129,10 @@ function AuthenticatedApp({
   email,
   onCreateCouple,
   onInviteEm,
+  onFetchInvites,
+  onResendInvite,
+  onCancelInvite,
+  onFetchActivity,
 }: {
   onLogout: () => void
   theme: ThemeVariant
@@ -129,6 +143,10 @@ function AuthenticatedApp({
   email: string | null
   onCreateCouple: (name: string) => Promise<void>
   onInviteEm: (email: string) => Promise<void>
+  onFetchInvites: () => Promise<CoupleInvite[]>
+  onResendInvite: (inviteId: string) => Promise<void>
+  onCancelInvite: (inviteId: string) => Promise<void>
+  onFetchActivity: () => Promise<CoupleActivity[]>
 }) {
   return (
     <div className="app-shell">
@@ -157,6 +175,10 @@ function AuthenticatedApp({
               email={email}
               onCreateCouple={onCreateCouple}
               onInviteEm={onInviteEm}
+              onFetchInvites={onFetchInvites}
+              onResendInvite={onResendInvite}
+              onCancelInvite={onCancelInvite}
+              onFetchActivity={onFetchActivity}
             />
           }
         />
@@ -195,6 +217,22 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
     await sendCoupleInvite(inviteEmail)
   }, [])
 
+  const handleFetchInvites = useCallback(async () => {
+    return await fetchCoupleInvites()
+  }, [])
+
+  const handleResendInvite = useCallback(async (inviteId: string) => {
+    await resendCoupleInvite(inviteId)
+  }, [])
+
+  const handleCancelInvite = useCallback(async (inviteId: string) => {
+    await cancelCoupleInvite(inviteId)
+  }, [])
+
+  const handleFetchActivity = useCallback(async () => {
+    return await fetchCoupleActivity()
+  }, [])
+
   const fallback = checking
     ? (
       <div className="spinner-wrap spinner-wrap-fullscreen">
@@ -214,6 +252,10 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
             email={email}
             onCreateCouple={handleCreateCouple}
             onInviteEm={handleInviteEm}
+            onFetchInvites={handleFetchInvites}
+            onResendInvite={handleResendInvite}
+            onCancelInvite={handleCancelInvite}
+            onFetchActivity={handleFetchActivity}
           />
         </GiftsProvider>
         )

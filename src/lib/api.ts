@@ -13,11 +13,55 @@ interface SessionPayload {
   email?: string
 }
 
+interface InvitePayload {
+  id: string
+  inviteeEmail: string
+  status: 'pending' | 'accepted' | 'cancelled' | 'expired'
+  createdAt: string
+  expiresAt: string
+  acceptedAt: string | null
+}
+
+interface InviteListPayload {
+  ok: boolean
+  invites: InvitePayload[]
+}
+
+interface ActivityPayload {
+  id: string
+  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added'
+  at: string
+  title: string
+  description: string
+}
+
+interface ActivityListPayload {
+  ok: boolean
+  activity: ActivityPayload[]
+}
+
 export interface SessionState {
   authenticated: boolean
   role: UserRole | null
   hasCouple: boolean
   email: string | null
+}
+
+export interface CoupleInvite {
+  id: string
+  inviteeEmail: string
+  status: 'pending' | 'accepted' | 'cancelled' | 'expired'
+  createdAt: string
+  expiresAt: string
+  acceptedAt: string | null
+}
+
+export interface CoupleActivity {
+  id: string
+  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added'
+  at: string
+  title: string
+  description: string
 }
 
 const MOCK_SEED_GIFTS: GiftItem[] = [
@@ -258,4 +302,36 @@ export async function acceptCoupleInvite(token: string): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ token }),
   })
+}
+
+export async function fetchCoupleInvites(): Promise<CoupleInvite[]> {
+  if (USE_MOCK_DATA) return []
+
+  const payload = await request<InviteListPayload>('/api/couple/invite')
+  return payload.invites ?? []
+}
+
+export async function resendCoupleInvite(inviteId: string): Promise<void> {
+  if (USE_MOCK_DATA) return
+
+  await request<void>('/api/couple/invite', {
+    method: 'PATCH',
+    body: JSON.stringify({ inviteId, action: 'resend' }),
+  })
+}
+
+export async function cancelCoupleInvite(inviteId: string): Promise<void> {
+  if (USE_MOCK_DATA) return
+
+  await request<void>('/api/couple/invite', {
+    method: 'PATCH',
+    body: JSON.stringify({ inviteId, action: 'cancel' }),
+  })
+}
+
+export async function fetchCoupleActivity(): Promise<CoupleActivity[]> {
+  if (USE_MOCK_DATA) return []
+
+  const payload = await request<ActivityListPayload>('/api/couple/activity')
+  return payload.activity ?? []
 }
