@@ -529,9 +529,17 @@ body {
   letter-spacing: 0.2px;
 }
 
+.wheel-hover-slice {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .wheel-tooltip {
   position: absolute;
-  transform: translate(-50%, -115%);
+  transform: translate(-50%, 14px);
   border-radius: 10px;
   max-width: 190px;
   padding: 7px 9px;
@@ -560,6 +568,28 @@ body {
   border: 2px solid rgba(255, 255, 255, 0.8);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 241, 246, 0.9));
   box-shadow: var(--shadow-glow);
+  z-index: 3;
+}
+
+.wheel-spin-btn {
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-weight: 800;
+  color: var(--wine-700);
+  letter-spacing: 0.3px;
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.wheel-spin-btn:hover {
+  transform: translate(-50%, -50%) scale(1.03);
+  filter: brightness(1.04);
+}
+
+.wheel-spin-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: translate(-50%, -50%);
 }
 
 .wheel-pointer {
