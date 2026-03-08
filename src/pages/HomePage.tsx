@@ -4,9 +4,10 @@ interface HomePageProps {
   theme: 'romantic' | 'anniversary'
   onToggleTheme: () => void
   onOpenLogin: () => void
+  loggedIn?: boolean
 }
 
-export function HomePage({ theme, onToggleTheme, onOpenLogin }: HomePageProps) {
+export function HomePage({ theme, onToggleTheme, onOpenLogin, loggedIn = false }: HomePageProps) {
   function handleStart(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
     onOpenLogin()
@@ -25,17 +26,20 @@ export function HomePage({ theme, onToggleTheme, onOpenLogin }: HomePageProps) {
         <p className="entry-chip">Love Presents</p>
         <h1 className="entry-title">Nơi hai bạn lưu lại quà tặng và chọn món ăn cho hôm nay</h1>
         <p className="entry-subtitle">
-          Đăng nhập Google, tạo couple, mời người thương và cùng nhau xây wishbook.
-          Mở thêm vòng quay may mắn để chốt nhanh câu hỏi: hôm nay ăn gì?
+          {loggedIn
+            ? 'Bạn đã sẵn sàng quay lại couple của mình. Mở wishbook hoặc vòng quay may mắn để tiếp tục kế hoạch yêu thương.'
+            : 'Đăng nhập Google, tạo couple, mời người thương và cùng nhau xây wishbook. Mở thêm vòng quay may mắn để chốt nhanh câu hỏi: hôm nay ăn gì?'}
         </p>
 
         <div className="entry-actions">
           <button type="button" className="btn btn-primary" onClick={handleStart}>
-            Bắt đầu ngay
+            {loggedIn ? 'Vào ứng dụng' : 'Bắt đầu ngay'}
           </button>
-          <button type="button" className="btn btn-ghost" onClick={handleStart}>
-            Đăng nhập Google
-          </button>
+          {!loggedIn && (
+            <button type="button" className="btn btn-ghost" onClick={handleStart}>
+              Đăng nhập Google
+            </button>
+          )}
         </div>
       </section>
 

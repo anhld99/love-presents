@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { GiftsProvider } from './hooks/useGifts'
 import { LoginPage } from './pages/LoginPage'
@@ -50,10 +50,10 @@ function Topbar({
   return (
     <header className="topbar">
       <div className="topbar-inner">
-        <a href="/" className="topbar-logo">
+        <Link to="/" className="topbar-logo">
           <span className="logo-mark">💝</span>
           <span className="logo-text">Love Presents</span>
-        </a>
+        </Link>
         <nav className="topbar-nav">
           {hasCouple && canViewList && (
             <NavLink to="/gifts" className={({ isActive }) => isActive ? 'active' : ''}>
@@ -208,6 +208,7 @@ function AuthenticatedApp({
 }
 
 function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme: () => void }) {
+  const navigate = useNavigate()
   const {
     authenticated,
     checking,
@@ -221,6 +222,7 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
   } = useAuth()
 
   const canViewList = role === 'anh'
+  const appHomePath = !hasCouple ? '/couple' : canViewList ? '/gifts' : '/add'
 
   const handleCreateCouple = useCallback(async (name: string) => {
     await createCouple(name)
@@ -275,28 +277,43 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
       )}
 
       {!checking && authenticated && (
-        <Route
-          path="*"
-          element={
-            <GiftsProvider canReadList={hasCouple && canViewList}>
-              <AuthenticatedApp
-                onLogout={() => { void logout() }}
+        <>
+          <Route
+            path="/"
+            element={
+              <HomePage
                 theme={theme}
                 onToggleTheme={onToggleTheme}
-                canViewList={canViewList}
-                hasCouple={hasCouple}
-                role={role}
-                email={email}
-                onCreateCouple={handleCreateCouple}
-                onInviteEm={handleInviteEm}
-                onFetchInvites={handleFetchInvites}
-                onResendInvite={handleResendInvite}
-                onCancelInvite={handleCancelInvite}
-                onFetchActivity={handleFetchActivity}
+                loggedIn
+                onOpenLogin={() => {
+                  navigate(appHomePath)
+                }}
               />
-            </GiftsProvider>
-          }
-        />
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              <GiftsProvider canReadList={hasCouple && canViewList}>
+                <AuthenticatedApp
+                  onLogout={() => { void logout() }}
+                  theme={theme}
+                  onToggleTheme={onToggleTheme}
+                  canViewList={canViewList}
+                  hasCouple={hasCouple}
+                  role={role}
+                  email={email}
+                  onCreateCouple={handleCreateCouple}
+                  onInviteEm={handleInviteEm}
+                  onFetchInvites={handleFetchInvites}
+                  onResendInvite={handleResendInvite}
+                  onCancelInvite={handleCancelInvite}
+                  onFetchActivity={handleFetchActivity}
+                />
+              </GiftsProvider>
+            }
+          />
+        </>
       )}
 
       {!checking && !authenticated && (
