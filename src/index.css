@@ -448,6 +448,114 @@ body {
   color: #6d4d4d;
 }
 
+.food-roulette-card,
+.food-manage-card {
+  margin-top: 14px;
+}
+
+.food-tier-switch {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.food-tier-btn {
+  border: 1px solid rgba(155, 122, 136, 0.32);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink-500);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.food-tier-btn.active {
+  color: var(--wine-700);
+  border-color: rgba(189, 58, 95, 0.42);
+  background: linear-gradient(130deg, rgba(255, 230, 238, 0.93), rgba(255, 241, 216, 0.92));
+}
+
+.food-tier-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.roulette-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(216, 79, 114, 0.2);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.95), rgba(255, 245, 249, 0.92));
+  padding: 18px;
+  text-align: center;
+}
+
+.roulette-panel.spinning {
+  box-shadow: var(--shadow-glow);
+}
+
+.roulette-label {
+  color: var(--ink-500);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12px;
+}
+
+.roulette-title {
+  margin-top: 8px;
+  color: var(--ink-900);
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.roulette-sub {
+  margin-top: 6px;
+  color: var(--ink-500);
+  font-size: 0.9rem;
+}
+
+.roulette-result {
+  margin: 11px 0 14px;
+  color: var(--wine-700);
+  font-weight: 800;
+}
+
+.food-list {
+  display: grid;
+  gap: 10px;
+}
+
+.food-row {
+  border-radius: 12px;
+  border: 1px solid rgba(214, 145, 168, 0.22);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 11px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.food-name {
+  color: var(--ink-900);
+  font-weight: 800;
+}
+
+.food-address {
+  margin-top: 2px;
+  color: var(--ink-500);
+  font-size: 0.82rem;
+}
+
+.food-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .form-grid {
   display: grid;
   gap: 16px;
@@ -1238,6 +1346,11 @@ body {
 
   .invite-row-actions {
     justify-content: flex-start;
+  }
+
+  .food-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

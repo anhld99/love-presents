@@ -68,6 +68,23 @@ create index if not exists gifts_couple_created_idx
 create index if not exists gifts_couple_creator_idx
   on gifts (couple_id, created_by);
 
+create table if not exists food_options (
+  id                 uuid primary key default gen_random_uuid(),
+  couple_id          uuid not null references couples(id) on delete cascade,
+  created_by         uuid references app_users(id) on delete set null,
+  name               text not null,
+  restaurant_address text not null,
+  price_level        text not null check (price_level in ('binh_dan', 'dat_do')),
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+
+create index if not exists food_options_couple_created_idx
+  on food_options (couple_id, created_at desc);
+
+create index if not exists food_options_couple_level_idx
+  on food_options (couple_id, price_level);
+
 -- Auto-update updated_at on row change
 create or replace function update_updated_at()
 returns trigger language plpgsql as $$
@@ -102,9 +119,15 @@ create trigger gifts_updated_at
   before update on gifts
   for each row execute function update_updated_at();
 
+drop trigger if exists food_options_updated_at on food_options;
+create trigger food_options_updated_at
+  before update on food_options
+  for each row execute function update_updated_at();
+
 -- Disable RLS (access controlled by API server with service_role key)
 alter table app_users disable row level security;
 alter table couples disable row level security;
 alter table couple_members disable row level security;
 alter table couple_invites disable row level security;
 alter table gifts disable row level security;
+alter table food_options disable row level security;

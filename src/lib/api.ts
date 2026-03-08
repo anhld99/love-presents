@@ -1,8 +1,11 @@
 import type { GiftItem, GiftFormData } from '../types/gift'
+import type { FoodOption, FoodOptionFormData } from '../types/food'
 
 const BASE = '/api/gifts'
+const FOOD_BASE = '/api/foods'
 const USE_MOCK_DATA = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA === 'true'
 const MOCK_STORAGE_KEY = 'love-presents:mock-gifts'
+const MOCK_FOOD_STORAGE_KEY = 'love-presents:mock-food-options'
 
 export type UserRole = 'anh' | 'em'
 
@@ -89,6 +92,25 @@ const MOCK_SEED_GIFTS: GiftItem[] = [
   },
 ]
 
+const MOCK_SEED_FOODS: FoodOption[] = [
+  {
+    id: 'food-1',
+    name: 'Bun bo',
+    restaurantAddress: '215 Nguyen Trai, Q1',
+    priceLevel: 'binh_dan',
+    createdAt: '2026-02-11T09:00:00.000Z',
+    updatedAt: '2026-02-11T09:00:00.000Z',
+  },
+  {
+    id: 'food-2',
+    name: 'Sushi omakase mini',
+    restaurantAddress: '52 Le Loi, Q1',
+    priceLevel: 'dat_do',
+    createdAt: '2026-02-15T09:00:00.000Z',
+    updatedAt: '2026-02-15T09:00:00.000Z',
+  },
+]
+
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
@@ -128,6 +150,32 @@ function readMockGifts(): GiftItem[] {
 function writeMockGifts(gifts: GiftItem[]): void {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(gifts))
+}
+
+function readMockFoods(): FoodOption[] {
+  if (typeof window === 'undefined') return []
+
+  const raw = window.localStorage.getItem(MOCK_FOOD_STORAGE_KEY)
+  if (!raw) {
+    const seed = clone(MOCK_SEED_FOODS)
+    window.localStorage.setItem(MOCK_FOOD_STORAGE_KEY, JSON.stringify(seed))
+    return seed
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) throw new Error('Invalid mock food data')
+    return parsed as FoodOption[]
+  } catch {
+    const seed = clone(MOCK_SEED_FOODS)
+    window.localStorage.setItem(MOCK_FOOD_STORAGE_KEY, JSON.stringify(seed))
+    return seed
+  }
+}
+
+function writeMockFoods(options: FoodOption[]): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(MOCK_FOOD_STORAGE_KEY, JSON.stringify(options))
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -218,6 +266,49 @@ export async function deleteGift(id: string): Promise<void> {
   }
 
   return request<void>(`${BASE}/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchFoodOptions(): Promise<FoodOption[]> {
+  if (USE_MOCK_DATA) {
+    const options = readMockFoods()
+    return options.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }
+
+  return request<FoodOption[]>(FOOD_BASE)
+}
+
+export async function createFoodOption(data: FoodOptionFormData): Promise<FoodOption> {
+  if (USE_MOCK_DATA) {
+    const options = readMockFoods()
+    const timestamp = nowIso()
+    const item: FoodOption = {
+      id: randomId(),
+      name: data.name.trim(),
+      restaurantAddress: data.restaurantAddress.trim(),
+      priceLevel: data.priceLevel,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }
+    writeMockFoods([item, ...options])
+    return item
+  }
+
+  return request<FoodOption>(FOOD_BASE, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteFoodOption(id: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    const options = readMockFoods()
+    const next = options.filter(item => item.id !== id)
+    if (next.length === options.length) throw new Error('Không tìm thấy món ăn để xoá')
+    writeMockFoods(next)
+    return
+  }
+
+  return request<void>(`${FOOD_BASE}/${id}`, { method: 'DELETE' })
 }
 
 export async function completeGoogleLogin(accessToken: string): Promise<SessionState> {

@@ -9,6 +9,7 @@ import { ToastProvider } from './components/ToastProvider'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { InviteAcceptPage } from './pages/InviteAcceptPage'
 import { CouplePage } from './pages/CouplePage'
+import { EatTodayPage } from './pages/EatTodayPage'
 import {
   acceptCoupleInvite,
   cancelCoupleInvite,
@@ -63,6 +64,11 @@ function Topbar({
               <span>✨ Thêm quà</span>
             </NavLink>
           )}
+          {hasCouple && (
+            <NavLink to="/eat" className={({ isActive }) => isActive ? 'active' : ''}>
+              <span>🍜 Hom nay an gi?</span>
+            </NavLink>
+          )}
           {!hasCouple && (
             <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
               <span>💞 Couple</span>
@@ -89,7 +95,7 @@ function MobileDock({
   canViewList: boolean
   hasCouple: boolean
 }) {
-  const itemCount = (hasCouple && canViewList ? 1 : 0) + (hasCouple ? 1 : 0) + (!hasCouple ? 1 : 0) + 1
+  const itemCount = (hasCouple && canViewList ? 1 : 0) + (hasCouple ? 1 : 0) + (hasCouple ? 1 : 0) + (!hasCouple ? 1 : 0) + 1
 
   return (
     <nav className={`mobile-dock columns-${itemCount}`} aria-label="Điều hướng nhanh">
@@ -103,6 +109,12 @@ function MobileDock({
         <NavLink to="/add" className={({ isActive }) => isActive ? 'active' : ''}>
           <span className="mobile-dock-icon">✨</span>
           <span className="mobile-dock-label">Thêm quà</span>
+        </NavLink>
+      )}
+      {hasCouple && (
+        <NavLink to="/eat" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span className="mobile-dock-icon">🍜</span>
+          <span className="mobile-dock-label">An gi</span>
         </NavLink>
       )}
       {!hasCouple && (
@@ -166,6 +178,7 @@ function AuthenticatedApp({
           element={hasCouple ? (canViewList ? <GiftListPage /> : <Navigate to="/add" replace />) : <Navigate to="/couple" replace />}
         />
         <Route path="/add" element={hasCouple ? <AddGiftPage /> : <Navigate to="/couple" replace />} />
+        <Route path="/eat" element={hasCouple ? <EatTodayPage role={role} /> : <Navigate to="/couple" replace />} />
         <Route
           path="/couple"
           element={
