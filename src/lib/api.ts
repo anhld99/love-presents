@@ -1,11 +1,13 @@
 import type { GiftItem, GiftFormData } from '../types/gift'
-import type { FoodOption, FoodOptionFormData } from '../types/food'
+import type { FoodOption, FoodOptionFormData, FoodSpinHistoryItem, FoodSpinPayload } from '../types/food'
 
 const BASE = '/api/gifts'
 const FOOD_BASE = '/api/foods'
+const FOOD_HISTORY_BASE = '/api/foods/history'
 const USE_MOCK_DATA = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA === 'true'
 const MOCK_STORAGE_KEY = 'love-presents:mock-gifts'
 const MOCK_FOOD_STORAGE_KEY = 'love-presents:mock-food-options'
+const MOCK_FOOD_HISTORY_STORAGE_KEY = 'love-presents:mock-food-spin-history'
 
 export type UserRole = 'anh' | 'em'
 
@@ -42,7 +44,7 @@ export interface CoupleInvite {
 
 export interface CoupleActivity {
   id: string
-  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added'
+  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun'
   at: string
   title: string
   description: string
@@ -79,6 +81,7 @@ const MOCK_SEED_FOODS: FoodOption[] = [
     name: 'Bun bo',
     restaurantAddress: '215 Nguyen Trai, Q1',
     priceLevel: 'binh_dan',
+    createdByEmail: 'mock@example.com',
     createdAt: '2026-02-11T09:00:00.000Z',
     updatedAt: '2026-02-11T09:00:00.000Z',
   },
@@ -87,6 +90,7 @@ const MOCK_SEED_FOODS: FoodOption[] = [
     name: 'Sushi omakase mini',
     restaurantAddress: '52 Le Loi, Q1',
     priceLevel: 'dat_do',
+    createdByEmail: 'mock@example.com',
     createdAt: '2026-02-15T09:00:00.000Z',
     updatedAt: '2026-02-15T09:00:00.000Z',
   },
@@ -157,6 +161,27 @@ function readMockFoods(): FoodOption[] {
 function writeMockFoods(options: FoodOption[]): void {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(MOCK_FOOD_STORAGE_KEY, JSON.stringify(options))
+}
+
+function readMockFoodHistory(): FoodSpinHistoryItem[] {
+  if (typeof window === 'undefined') return []
+
+  const raw = window.localStorage.getItem(MOCK_FOOD_HISTORY_STORAGE_KEY)
+  if (!raw) return []
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) throw new Error('Invalid mock food history data')
+    return parsed as FoodSpinHistoryItem[]
+  } catch {
+    window.localStorage.removeItem(MOCK_FOOD_HISTORY_STORAGE_KEY)
+    return []
+  }
+}
+
+function writeMockFoodHistory(history: FoodSpinHistoryItem[]): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(MOCK_FOOD_HISTORY_STORAGE_KEY, JSON.stringify(history))
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -334,6 +359,7 @@ export async function createFoodOption(data: FoodOptionFormData): Promise<FoodOp
       name: data.name.trim(),
       restaurantAddress: data.restaurantAddress.trim(),
       priceLevel: data.priceLevel,
+      createdByEmail: 'mock@example.com',
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -357,6 +383,43 @@ export async function deleteFoodOption(id: string): Promise<void> {
   }
 
   return request<void>(`${FOOD_BASE}/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchFoodSpinHistory(): Promise<FoodSpinHistoryItem[]> {
+  if (USE_MOCK_DATA) {
+    const history = readMockFoodHistory()
+    return history.sort((a, b) => b.spunAt.localeCompare(a.spunAt))
+  }
+
+  return fetchAllPages<FoodSpinHistoryItem>(FOOD_HISTORY_BASE)
+}
+
+export async function recordFoodSpin(data: FoodSpinPayload): Promise<FoodSpinHistoryItem> {
+  if (USE_MOCK_DATA) {
+    const options = readMockFoods()
+    const winner = options.find(option => option.id === data.optionId)
+    if (!winner) {
+      throw new Error('Không tìm thấy món ăn để lưu lịch sử quay')
+    }
+
+    const item: FoodSpinHistoryItem = {
+      id: randomId(),
+      foodOptionId: winner.id,
+      foodName: winner.name,
+      restaurantAddress: winner.restaurantAddress,
+      priceLevel: winner.priceLevel,
+      spunAt: nowIso(),
+      spunByEmail: 'mock@example.com',
+    }
+
+    writeMockFoodHistory([item, ...readMockFoodHistory()])
+    return item
+  }
+
+  return request<FoodSpinHistoryItem>(FOOD_HISTORY_BASE, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
 }
 
 export async function completeGoogleLogin(accessToken: string): Promise<SessionState> {

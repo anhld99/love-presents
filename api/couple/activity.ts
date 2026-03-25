@@ -23,6 +23,15 @@ interface GiftRow {
   created_by: string | null
 }
 
+interface FoodSpinRow {
+  id: string
+  food_name: string
+  restaurant_address: string
+  price_level: 'binh_dan' | 'dat_do'
+  created_at: string
+  spun_by: string | null
+}
+
 interface MemberRow {
   user_id: string
   role: 'anh' | 'em'
@@ -35,7 +44,7 @@ interface UserEmailRow {
 
 interface CoupleActivityItem {
   id: string
-  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added'
+  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun'
   at: string
   title: string
   description: string
@@ -60,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const supabase = getSupabaseAdmin()
 
-    const [{ data: couple, error: coupleError }, { data: invites, error: invitesError }, { data: gifts, error: giftsError }, { data: members, error: membersError }] = await Promise.all([
+    const [{ data: couple, error: coupleError }, { data: invites, error: invitesError }, { data: gifts, error: giftsError }, { data: foodSpins, error: foodSpinsError }, { data: members, error: membersError }] = await Promise.all([
       supabase
         .from('couples')
         .select('id, name, created_at')
@@ -77,6 +86,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('couple_id', membership.coupleId)
         .order('created_at', { ascending: false }),
       supabase
+        .from('food_spin_history')
+        .select('id, food_name, restaurant_address, price_level, created_at, spun_by')
+        .eq('couple_id', membership.coupleId)
+        .order('created_at', { ascending: false }),
+      supabase
         .from('couple_members')
         .select('user_id, role')
         .eq('couple_id', membership.coupleId),
@@ -85,6 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (coupleError) return res.status(500).json({ error: coupleError.message })
     if (invitesError) return res.status(500).json({ error: invitesError.message })
     if (giftsError) return res.status(500).json({ error: giftsError.message })
+    if (foodSpinsError) return res.status(500).json({ error: foodSpinsError.message })
     if (membersError) return res.status(500).json({ error: membersError.message })
 
     const typedMembers = (members ?? []) as MemberRow[]
@@ -149,6 +164,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     }
 
+    for (const spin of (foodSpins ?? []) as FoodSpinRow[]) {
+      const role = spin.spun_by ? roleByUserId.get(spin.spun_by) : null
+      const email = spin.spun_by ? emailByUserId.get(spin.spun_by) : null
+
+      let actorText = 'Một thành viên'
+      if (role === 'em') actorText = 'Em'
+      if (role === 'anh') actorText = 'Anh'
+
+      activity.push({
+        id: `food-spin-${spin.id}`,
+        type: 'food_spun',
+        at: spin.created_at,
+        title: `${actorText} đã quay ra món: ${spin.food_name}`,
+        description: `${labelFoodLevel(spin.price_level)} • ${spin.restaurant_address}${email ? ` • Tài khoản: ${email}` : ''}`,
+      })
+    }
+
     activity.sort((a, b) => b.at.localeCompare(a.at))
 
     const from = (page - 1) * pageSize
@@ -164,4 +196,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = err instanceof Error ? err.message : 'Không thể tải hoạt động couple'
     return res.status(500).json({ error: message })
   }
+}
+
+function labelFoodLevel(level: FoodSpinRow['price_level']): string {
+  return level === 'binh_dan' ? 'Bình dân' : 'Đắt đỏ'
 }

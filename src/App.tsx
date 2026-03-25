@@ -11,6 +11,7 @@ import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { InviteAcceptPage } from './pages/InviteAcceptPage'
 import { CouplePage } from './pages/CouplePage'
 import { EatTodayPage } from './pages/EatTodayPage'
+import { FoodSpinHistoryPage } from './pages/FoodSpinHistoryPage'
 import {
   acceptCoupleInvite,
   cancelCoupleInvite,
@@ -179,7 +180,8 @@ function AuthenticatedApp({
           element={hasCouple ? (canViewList ? <GiftListPage /> : <Navigate to="/add" replace />) : <Navigate to="/couple" replace />}
         />
         <Route path="/add" element={hasCouple ? <AddGiftPage /> : <Navigate to="/couple" replace />} />
-        <Route path="/eat" element={hasCouple ? <EatTodayPage role={role} /> : <Navigate to="/couple" replace />} />
+        <Route path="/eat" element={hasCouple ? <EatTodayPage role={role} email={email} /> : <Navigate to="/couple" replace />} />
+        <Route path="/eat-history" element={hasCouple ? <FoodSpinHistoryPage /> : <Navigate to="/couple" replace />} />
         <Route
           path="/couple"
           element={

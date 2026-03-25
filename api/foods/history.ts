@@ -2,16 +2,23 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { ensureAppUser, getMembershipByUserId, requireSessionUser } from '../_couples.js'
 import { parsePagination, toPaginationMeta } from '../_pagination.js'
 import { getSupabaseAdmin } from '../_supabase.js'
-import type { FoodOptionFormData } from '../../src/types/food.js'
+import type { FoodSpinPayload } from '../../src/types/food.js'
 
-interface FoodRow {
+interface FoodOptionRow {
   id: string
   name: string
   restaurant_address: string
   price_level: 'binh_dan' | 'dat_do'
-  created_by: string | null
+}
+
+interface FoodSpinHistoryRow {
+  id: string
+  food_option_id: string | null
+  food_name: string
+  restaurant_address: string
+  price_level: 'binh_dan' | 'dat_do'
   created_at: string
-  updated_at: string
+  spun_by: string | null
 }
 
 interface AppUserRow {
@@ -27,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await ensureAppUser(user)
     const membership = await getMembershipByUserId(user.userId)
     if (!membership) {
-      return res.status(403).json({ error: 'Bạn cần tham gia một couple trước khi dùng tính năng ăn uống' })
+      return res.status(403).json({ error: 'Bạn cần tham gia một couple trước khi dùng lịch sử quay món' })
     }
 
     const supabase = getSupabaseAdmin()
@@ -37,8 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const levelQuery = parseLevel(req.query.priceLevel)
 
       let query = supabase
-        .from('food_options')
-        .select('id, name, restaurant_address, price_level, created_by, created_at, updated_at', { count: 'exact' })
+        .from('food_spin_history')
+        .select('id, food_option_id, food_name, restaurant_address, price_level, created_at, spun_by', { count: 'exact' })
         .eq('couple_id', membership.coupleId)
         .order('created_at', { ascending: false })
         .range(from, to)
@@ -48,71 +55,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const { data, count, error } = await query
-
       if (error) return res.status(500).json({ error: error.message })
 
-      const rows = (data ?? []) as FoodRow[]
-      const creatorIds = [...new Set(rows.flatMap(row => row.created_by ? [row.created_by] : []))]
-      const { data: users, error: usersError } = creatorIds.length
+      const rows = (data ?? []) as FoodSpinHistoryRow[]
+      const userIds = rows.flatMap(row => row.spun_by ? [row.spun_by] : [])
+
+      const { data: users, error: usersError } = userIds.length
         ? await supabase
           .from('app_users')
           .select('id, email')
-          .in('id', creatorIds)
+          .in('id', userIds)
         : { data: [], error: null }
 
       if (usersError) return res.status(500).json({ error: usersError.message })
 
       const emailByUserId = new Map(((users ?? []) as AppUserRow[]).map(item => [item.id, item.email]))
-      const payload = rows.map(row => toFoodOption(row, emailByUserId))
 
       return res.status(200).json({
-        items: payload,
+        items: rows.map(row => toFoodSpinHistoryItem(row, emailByUserId)),
         pagination: toPaginationMeta(count ?? 0, page, pageSize),
       })
     }
 
     if (req.method === 'POST') {
-      const body = req.body as FoodOptionFormData
-      const name = body.name?.trim() ?? ''
-      const restaurantAddress = body.restaurantAddress?.trim() ?? ''
-      const priceLevel = body.priceLevel
-
-      if (!name || !restaurantAddress || (priceLevel !== 'binh_dan' && priceLevel !== 'dat_do')) {
-        return res.status(400).json({ error: 'Thiếu thông tin món ăn hoặc mức giá không hợp lệ' })
+      const body = req.body as FoodSpinPayload
+      const optionId = body.optionId?.trim()
+      if (!optionId) {
+        return res.status(400).json({ error: 'Thiếu món ăn để lưu lịch sử quay' })
       }
 
-      const { data, error } = await supabase
+      const { data: option, error: optionError } = await supabase
         .from('food_options')
+        .select('id, name, restaurant_address, price_level')
+        .eq('id', optionId)
+        .eq('couple_id', membership.coupleId)
+        .maybeSingle<FoodOptionRow>()
+
+      if (optionError) return res.status(500).json({ error: optionError.message })
+      if (!option) return res.status(404).json({ error: 'Không tìm thấy món ăn để lưu lịch sử quay' })
+
+      const { data, error } = await supabase
+        .from('food_spin_history')
         .insert({
           couple_id: membership.coupleId,
-          created_by: user.userId,
-          name,
-          restaurant_address: restaurantAddress,
-          price_level: priceLevel,
+          food_option_id: option.id,
+          spun_by: user.userId,
+          food_name: option.name,
+          restaurant_address: option.restaurant_address,
+          price_level: option.price_level,
         })
-        .select('id, name, restaurant_address, price_level, created_by, created_at, updated_at')
-        .single<FoodRow>()
+        .select('id, food_option_id, food_name, restaurant_address, price_level, created_at, spun_by')
+        .single<FoodSpinHistoryRow>()
 
       if (error) return res.status(500).json({ error: error.message })
-      return res.status(201).json(toFoodOption(data, new Map([[user.userId, user.email]])))
+
+      return res.status(201).json(toFoodSpinHistoryItem(data, new Map([[user.userId, user.email]])))
     }
 
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Không thể xử lý món ăn hôm nay'
+    const message = err instanceof Error ? err.message : 'Không thể xử lý lịch sử quay món'
     return res.status(500).json({ error: message })
   }
 }
 
-function toFoodOption(row: FoodRow, emailByUserId: Map<string, string>) {
+function toFoodSpinHistoryItem(row: FoodSpinHistoryRow, emailByUserId: Map<string, string>) {
   return {
     id: row.id,
-    name: row.name,
+    foodOptionId: row.food_option_id,
+    foodName: row.food_name,
     restaurantAddress: row.restaurant_address,
     priceLevel: row.price_level,
-    createdByEmail: row.created_by ? emailByUserId.get(row.created_by) ?? null : null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    spunAt: row.created_at,
+    spunByEmail: row.spun_by ? emailByUserId.get(row.spun_by) ?? null : null,
   }
 }
 

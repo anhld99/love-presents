@@ -1,0 +1,2 @@
+-- Optional local seed data for `supabase db reset`.
+-- Leave empty until the project needs deterministic fixtures.

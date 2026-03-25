@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useToast } from '../components/useToast'
-import { createFoodOption, deleteFoodOption, fetchFoodOptions } from '../lib/api'
+import { createFoodOption, deleteFoodOption, fetchFoodOptions, recordFoodSpin } from '../lib/api'
 import type { FoodOption, FoodPriceLevel } from '../types/food'
 
 interface EatTodayPageProps {
   role: 'anh' | 'em' | null
+  email: string | null
 }
 
 const WHEEL_COLORS = ['#ffd6e4', '#ffe7c7', '#ffeef4', '#f5ddff', '#ffe2d8', '#fff0ca']
 const MAX_WHEEL_LABELS = 12
 const LIST_PAGE_SIZE = 8
 
-export function EatTodayPage({ role }: EatTodayPageProps) {
+export function EatTodayPage({ role, email }: EatTodayPageProps) {
   const { showToast } = useToast()
   const [options, setOptions] = useState<FoodOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,8 +35,6 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
 
   const spinTimeoutRef = useRef<number | null>(null)
   const wheelWrapRef = useRef<HTMLDivElement | null>(null)
-
-  const isAnh = role === 'anh'
 
   const filtered = useMemo(() => {
     return options.filter(item => item.priceLevel === priceLevel)
@@ -201,6 +201,14 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
     }
   }
 
+  async function persistSpinResult(winner: FoodOption) {
+    try {
+      await recordFoodSpin({ optionId: winner.id })
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể lưu lịch sử quay món', 'error')
+    }
+  }
+
   function handleSpin() {
     if (spinning) return
 
@@ -233,6 +241,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
       setSpinning(false)
       setResult(winner)
       showToast(`Hôm nay ăn: ${winner.name}`)
+      void persistSpinResult(winner)
     }, 4200)
   }
 
@@ -281,6 +290,10 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
     setListPageByTab(prev => ({ ...prev, [listTab]: nextPage }))
   }
 
+  function canDeleteItem(item: FoodOption): boolean {
+    return role === 'anh' || (!!email && item.createdByEmail === email)
+  }
+
   return (
     <main className="page">
       <section className="page-hero page-hero-compact">
@@ -289,6 +302,9 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
           <h1 className="page-title">Hôm nay ăn gì?</h1>
           <p className="page-subtitle">Vòng quay may mắn chọn món nhanh, đẹp và đúng mood của hai bạn.</p>
         </div>
+        <Link to="/eat-history" className="btn btn-ghost hero-cta">
+          Xem lịch sử quay
+        </Link>
       </section>
 
       <div className="card food-roulette-card">
@@ -389,56 +405,54 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
         </div>
       </div>
 
-      {isAnh && (
-        <div className="card food-manage-card">
-          <h3>Thêm món ăn mới</h3>
-          <p className="page-subtitle">Chỉ anh được cập nhật danh sách món cho vòng quay.</p>
-          <form className="form-grid" onSubmit={e => { void handleAddOption(e) }}>
-            <div className="form-group">
-              <label className="form-label">Tên món</label>
-              <input
-                className="form-input"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Ví dụ: Bún chả Hà Nội"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Địa chỉ quán</label>
-              <input
-                className="form-input"
-                value={restaurantAddress}
-                onChange={e => setRestaurantAddress(e.target.value)}
-                placeholder="Số nhà, đường, quận"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Mức giá</label>
-              <div className="food-tier-switch">
-                <button
-                  type="button"
-                  className={`food-tier-btn${newPriceLevel === 'binh_dan' ? ' active' : ''}`}
-                  onClick={() => setNewPriceLevel('binh_dan')}
-                >
-                  Bình dân
-                </button>
-                <button
-                  type="button"
-                  className={`food-tier-btn${newPriceLevel === 'dat_do' ? ' active' : ''}`}
-                  onClick={() => setNewPriceLevel('dat_do')}
-                >
-                  Đắt đỏ
-                </button>
-              </div>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-primary form-submit" disabled={saving}>
-                {saving ? 'Đang lưu...' : 'Thêm món'}
+      <div className="card food-manage-card">
+        <h3>Cùng thêm món mới</h3>
+        <p className="page-subtitle">Ai trong couple cũng có thể góp món vào vòng quay may mắn.</p>
+        <form className="form-grid" onSubmit={e => { void handleAddOption(e) }}>
+          <div className="form-group">
+            <label className="form-label">Tên món</label>
+            <input
+              className="form-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Ví dụ: Bún chả Hà Nội"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Địa chỉ quán</label>
+            <input
+              className="form-input"
+              value={restaurantAddress}
+              onChange={e => setRestaurantAddress(e.target.value)}
+              placeholder="Số nhà, đường, quận"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Mức giá</label>
+            <div className="food-tier-switch">
+              <button
+                type="button"
+                className={`food-tier-btn${newPriceLevel === 'binh_dan' ? ' active' : ''}`}
+                onClick={() => setNewPriceLevel('binh_dan')}
+              >
+                Bình dân
+              </button>
+              <button
+                type="button"
+                className={`food-tier-btn${newPriceLevel === 'dat_do' ? ' active' : ''}`}
+                onClick={() => setNewPriceLevel('dat_do')}
+              >
+                Đắt đỏ
               </button>
             </div>
-          </form>
-        </div>
-      )}
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary form-submit" disabled={saving}>
+              {saving ? 'Đang lưu...' : 'Thêm món'}
+            </button>
+          </div>
+        </form>
+      </div>
 
       <div className="card food-manage-card">
         <h3>Danh sách món ăn</h3>
@@ -473,7 +487,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
           <div className="empty-state">
             <div className="empty-state-icon">🍜</div>
             <h3>Chưa có món ăn nào</h3>
-            <p>{isAnh ? 'Hãy thêm món để bắt đầu vòng quay.' : 'Nhờ anh thêm món để có thể quay.'}</p>
+            <p>Hãy thêm món để bắt đầu vòng quay.</p>
           </div>
         )}
 
@@ -481,7 +495,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
           <div className="empty-state">
             <div className="empty-state-icon">🔎</div>
             <h3>Chưa có món ở mức {labelLevel(listTab)}</h3>
-            <p>{isAnh ? 'Bạn có thể thêm món mới cho tab này.' : 'Nhờ anh thêm món để quay ở mức này.'}</p>
+            <p>Hãy thêm món mới cho mức giá này để vòng quay phong phú hơn.</p>
           </div>
         )}
 
@@ -497,7 +511,7 @@ export function EatTodayPage({ role }: EatTodayPageProps) {
                   <span className={`invite-status ${item.priceLevel === 'binh_dan' ? 'status-accepted' : 'status-pending'}`}>
                     {labelLevel(item.priceLevel)}
                   </span>
-                  {isAnh && (
+                  {canDeleteItem(item) && (
                     <button
                       type="button"
                       className="btn btn-danger"
