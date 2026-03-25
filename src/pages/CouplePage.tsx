@@ -85,13 +85,13 @@ export function CouplePage({
     async function run() {
       if (role === 'anh') {
         setInvitesLoading(true)
+        setActivityLoading(true)
       }
-      setActivityLoading(true)
 
       try {
         const [inviteList, activityList, coupleStatus] = await Promise.all([
           role === 'anh' ? onFetchInvites() : Promise.resolve(null),
-          onFetchActivity(),
+          role === 'anh' ? onFetchActivity() : Promise.resolve(null),
           onFetchCoupleStatus(),
         ])
 
@@ -99,7 +99,7 @@ export function CouplePage({
           if (inviteList) {
             setInvites(inviteList)
           }
-          setActivity(activityList)
+          setActivity(activityList ?? [])
           setComfortAlertCooldownUntil(coupleStatus.comfortAlertCooldownUntil)
         }
       } catch (err) {
@@ -147,6 +147,7 @@ export function CouplePage({
   }
 
   async function reloadActivity() {
+    if (role !== 'anh') return
     const activityList = await onFetchActivity()
     setActivity(activityList)
   }
@@ -221,7 +222,7 @@ export function CouplePage({
       const result = await onSendComfortAlert()
       setComfortAlertCooldownUntil(result.comfortAlertCooldownUntil)
       setComfortMessage('Đã gửi email quan trọng cho anh rồi. Hy vọng anh sẽ dỗ bạn thật nhanh!')
-      await reloadActivity()
+      await reloadCoupleStatus()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể gửi tín hiệu cho anh')
       try {
@@ -441,7 +442,7 @@ export function CouplePage({
         </div>
       )}
 
-      {hasCouple && (
+      {hasCouple && role === 'anh' && (
         <div className="card couple-card">
           <h3>Hoạt động gần đây</h3>
           <p className="page-subtitle">Những thay đổi mới nhất trong couple của hai bạn.</p>

@@ -79,6 +79,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Bạn cần tham gia một couple trước khi xem hoạt động' })
     }
 
+    if (membership.role !== 'anh') {
+      return res.status(403).json({ error: 'Chỉ anh mới có thể xem hoạt động gần đây' })
+    }
+
     const supabase = getSupabaseAdmin()
 
     const [{ data: couple, error: coupleError }, { data: invites, error: invitesError }, { data: gifts, error: giftsError }, { data: foodSpins, error: foodSpinsError }, { data: comfortAlerts, error: comfortAlertsError }, { data: comfortReplies, error: comfortRepliesError }, { data: members, error: membersError }] = await Promise.all([
