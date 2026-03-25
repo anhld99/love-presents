@@ -11,6 +11,7 @@ interface CouplePageProps {
   onCreateCouple: (name: string) => Promise<void>
   onInviteEm: (email: string) => Promise<void>
   onSendComfortAlert: () => Promise<ComfortAlertResult>
+  onSendComfortReply: () => Promise<void>
   onFetchCoupleStatus: () => Promise<CoupleStatus>
   onFetchInvites: () => Promise<CoupleInvite[]>
   onResendInvite: (inviteId: string) => Promise<void>
@@ -28,6 +29,7 @@ export function CouplePage({
   onCreateCouple,
   onInviteEm,
   onSendComfortAlert,
+  onSendComfortReply,
   onFetchCoupleStatus,
   onFetchInvites,
   onResendInvite,
@@ -39,9 +41,11 @@ export function CouplePage({
   const [loadingCreate, setLoadingCreate] = useState(false)
   const [loadingInvite, setLoadingInvite] = useState(false)
   const [loadingComfortAlert, setLoadingComfortAlert] = useState(false)
+  const [loadingComfortReply, setLoadingComfortReply] = useState(false)
   const [createMessage, setCreateMessage] = useState('')
   const [inviteMessage, setInviteMessage] = useState('')
   const [comfortMessage, setComfortMessage] = useState('')
+  const [comfortReplyMessage, setComfortReplyMessage] = useState('')
   const [comfortAlertCooldownUntil, setComfortAlertCooldownUntil] = useState<string | null>(null)
   const [error, setError] = useState('')
 
@@ -230,6 +234,22 @@ export function CouplePage({
     }
   }
 
+  async function handleSendComfortReply() {
+    setLoadingComfortReply(true)
+    setError('')
+    setComfortReplyMessage('')
+
+    try {
+      await onSendComfortReply()
+      setComfortReplyMessage('Đã gửi lời nhắn cho em rồi. Hy vọng em sẽ mềm lòng hơn một chút!')
+      await reloadActivity()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể gửi lời dỗ dành cho em')
+    } finally {
+      setLoadingComfortReply(false)
+    }
+  }
+
   async function handleCancelInvite(inviteId: string) {
     setInviteActionId(inviteId)
     setError('')
@@ -266,6 +286,26 @@ export function CouplePage({
           {hasUnreadComfortAlert
             ? `Em vừa gửi tín hiệu cần được dỗ lúc ${formatDate(latestComfortAlertAt)}.`
             : `Tín hiệu gần nhất từ em được gửi lúc ${formatDate(latestComfortAlertAt)}.`}
+        </div>
+      )}
+
+      {hasCouple && role === 'anh' && latestComfortAlertAt && (
+        <div className="card couple-card">
+          <h3>Phản hồi cho em</h3>
+          <p className="page-subtitle">Gửi cho em một email trấn an để em biết anh đã nhận tín hiệu rồi.</p>
+          {comfortReplyMessage && <div className="alert alert-success alert-spaced">{comfortReplyMessage}</div>}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={loadingComfortReply}
+              onClick={() => {
+                void handleSendComfortReply()
+              }}
+            >
+              {loadingComfortReply ? 'Đang gửi lời dỗ dành...' : 'Anh đang tới dỗ em đây'}
+            </button>
+          </div>
         </div>
       )}
 

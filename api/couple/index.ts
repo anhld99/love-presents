@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getAppBaseUrl } from '../_appUrl.js'
 import { ensureAppUser, getCoupleMemberEmailByRole, getMembershipByUserId, requireSessionUser } from '../_couples.js'
-import { sendComfortAlertEmail } from '../_mailer.js'
+import { sendComfortAlertEmail, sendComfortReplyEmail } from '../_mailer.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 
 interface CreateCoupleBody {
@@ -9,7 +9,7 @@ interface CreateCoupleBody {
 }
 
 interface CoupleActionBody {
-  action?: 'comfort-alert'
+  action?: 'comfort-alert' | 'comfort-reply'
 }
 
 interface CoupleRow {
@@ -115,8 +115,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Bạn chưa thuộc couple nào để gửi tín hiệu cầu cứu' })
       }
 
-      if (body.action !== 'comfort-alert') {
+      if (body.action !== 'comfort-alert' && body.action !== 'comfort-reply') {
         return res.status(400).json({ error: 'Action không hợp lệ' })
+      }
+
+      const supabase = getSupabaseAdmin()
+      const { data: couple, error: coupleError } = await supabase
+        .from('couples')
+        .select('id, name')
+        .eq('id', membership.coupleId)
+        .single<CoupleRow>()
+
+      if (coupleError) {
+        return res.status(500).json({ error: coupleError.message })
+      }
+
+      if (body.action === 'comfort-reply') {
+        if (membership.role !== 'anh') {
+          return res.status(403).json({ error: 'Chỉ anh mới có thể gửi lời dỗ em' })
+        }
+
+        const latestComfortAlertAt = await getLatestComfortAlertAt(membership.coupleId)
+        if (!latestComfortAlertAt) {
+          return res.status(409).json({ error: 'Chưa có tín hiệu nào từ em để phản hồi' })
+        }
+
+        const emEmail = await getCoupleMemberEmailByRole(membership.coupleId, 'em')
+        if (!emEmail) {
+          return res.status(404).json({ error: 'Chưa tìm thấy email của em để gửi lời nhắn' })
+        }
+
+        await sendComfortReplyEmail({
+          anhEmail: user.email,
+          emEmail,
+          coupleName: couple.name,
+          appUrl: `${getAppBaseUrl(req)}/couple`,
+        })
+
+        const { error: comfortReplyError } = await supabase
+          .from('comfort_replies')
+          .insert({
+            couple_id: membership.coupleId,
+            sent_by: user.userId,
+          })
+
+        if (comfortReplyError) {
+          return res.status(500).json({ error: comfortReplyError.message })
+        }
+
+        return res.status(200).json({ ok: true })
       }
 
       if (membership.role !== 'em') {
@@ -129,17 +176,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           error: `Anh vừa được nhắc rồi. Có thể gửi lại sau ${formatRemainingDuration(comfortAlertCooldownUntil)} nữa nha.`,
           comfortAlertCooldownUntil,
         })
-      }
-
-      const supabase = getSupabaseAdmin()
-      const { data: couple, error: coupleError } = await supabase
-        .from('couples')
-        .select('id, name')
-        .eq('id', membership.coupleId)
-        .single<CoupleRow>()
-
-      if (coupleError) {
-        return res.status(500).json({ error: coupleError.message })
       }
 
       const anhEmail = await getCoupleMemberEmailByRole(membership.coupleId, 'anh')

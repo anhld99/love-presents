@@ -21,6 +21,7 @@ import {
   fetchCoupleInvites,
   resendCoupleInvite,
   sendComfortAlert,
+  sendComfortReply,
   sendCoupleInvite,
   type ComfortAlertResult,
   type CoupleActivity,
@@ -172,6 +173,7 @@ function AuthenticatedApp({
   onCreateCouple,
   onInviteEm,
   onSendComfortAlert,
+  onSendComfortReply,
   onFetchCoupleStatus,
   onFetchInvites,
   onResendInvite,
@@ -191,6 +193,7 @@ function AuthenticatedApp({
   onCreateCouple: (name: string) => Promise<void>
   onInviteEm: (email: string) => Promise<void>
   onSendComfortAlert: () => Promise<ComfortAlertResult>
+  onSendComfortReply: () => Promise<void>
   onFetchCoupleStatus: () => Promise<CoupleStatus>
   onFetchInvites: () => Promise<CoupleInvite[]>
   onResendInvite: (inviteId: string) => Promise<void>
@@ -231,6 +234,7 @@ function AuthenticatedApp({
               onCreateCouple={onCreateCouple}
               onInviteEm={onInviteEm}
               onSendComfortAlert={onSendComfortAlert}
+              onSendComfortReply={onSendComfortReply}
               onFetchCoupleStatus={onFetchCoupleStatus}
               onFetchInvites={onFetchInvites}
               onResendInvite={onResendInvite}
@@ -324,6 +328,10 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
     return await sendComfortAlert()
   }, [])
 
+  const handleSendComfortReply = useCallback(async () => {
+    await sendComfortReply()
+  }, [])
+
   const handleFetchCoupleStatus = useCallback(async () => {
     return await fetchCoupleStatus()
   }, [])
@@ -410,6 +418,7 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
                   onCreateCouple={handleCreateCouple}
                   onInviteEm={handleInviteEm}
                   onSendComfortAlert={handleSendComfortAlert}
+                  onSendComfortReply={handleSendComfortReply}
                   onFetchCoupleStatus={handleFetchCoupleStatus}
                   onFetchInvites={handleFetchInvites}
                   onResendInvite={handleResendInvite}

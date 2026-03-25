@@ -38,6 +38,12 @@ interface ComfortAlertRow {
   sent_by: string | null
 }
 
+interface ComfortReplyRow {
+  id: string
+  created_at: string
+  sent_by: string | null
+}
+
 interface MemberRow {
   user_id: string
   role: 'anh' | 'em'
@@ -50,7 +56,7 @@ interface UserEmailRow {
 
 interface CoupleActivityItem {
   id: string
-  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun' | 'comfort_alert_sent'
+  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun' | 'comfort_alert_sent' | 'comfort_reply_sent'
   at: string
   title: string
   description: string
@@ -75,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const supabase = getSupabaseAdmin()
 
-    const [{ data: couple, error: coupleError }, { data: invites, error: invitesError }, { data: gifts, error: giftsError }, { data: foodSpins, error: foodSpinsError }, { data: comfortAlerts, error: comfortAlertsError }, { data: members, error: membersError }] = await Promise.all([
+    const [{ data: couple, error: coupleError }, { data: invites, error: invitesError }, { data: gifts, error: giftsError }, { data: foodSpins, error: foodSpinsError }, { data: comfortAlerts, error: comfortAlertsError }, { data: comfortReplies, error: comfortRepliesError }, { data: members, error: membersError }] = await Promise.all([
       supabase
         .from('couples')
         .select('id, name, created_at')
@@ -102,6 +108,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('couple_id', membership.coupleId)
         .order('created_at', { ascending: false }),
       supabase
+        .from('comfort_replies')
+        .select('id, created_at, sent_by')
+        .eq('couple_id', membership.coupleId)
+        .order('created_at', { ascending: false }),
+      supabase
         .from('couple_members')
         .select('user_id, role')
         .eq('couple_id', membership.coupleId),
@@ -112,6 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (giftsError) return res.status(500).json({ error: giftsError.message })
     if (foodSpinsError) return res.status(500).json({ error: foodSpinsError.message })
     if (comfortAlertsError) return res.status(500).json({ error: comfortAlertsError.message })
+    if (comfortRepliesError) return res.status(500).json({ error: comfortRepliesError.message })
     if (membersError) return res.status(500).json({ error: membersError.message })
 
     const typedMembers = (members ?? []) as MemberRow[]
@@ -207,6 +219,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         at: alert.created_at,
         title: `${actorText} đã gửi tín hiệu cần được dỗ ngay`,
         description: email ? `Email quan trọng đã được gửi cho anh từ tài khoản ${email}.` : 'Email quan trọng đã được gửi cho anh.',
+      })
+    }
+
+    for (const reply of (comfortReplies ?? []) as ComfortReplyRow[]) {
+      const role = reply.sent_by ? roleByUserId.get(reply.sent_by) : null
+      const email = reply.sent_by ? emailByUserId.get(reply.sent_by) : null
+
+      let actorText = 'Một thành viên'
+      if (role === 'em') actorText = 'Em'
+      if (role === 'anh') actorText = 'Anh'
+
+      activity.push({
+        id: `comfort-reply-${reply.id}`,
+        type: 'comfort_reply_sent',
+        at: reply.created_at,
+        title: `${actorText} đã nhắn: anh đang tới dỗ em đây`,
+        description: email ? `Email trấn an đã được gửi từ tài khoản ${email}.` : 'Email trấn an đã được gửi cho em.',
       })
     }
 

@@ -46,7 +46,7 @@ export interface CoupleInvite {
 
 export interface CoupleActivity {
   id: string
-  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun' | 'comfort_alert_sent'
+  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun' | 'comfort_alert_sent' | 'comfort_reply_sent'
   at: string
   title: string
   description: string
@@ -546,6 +546,15 @@ export async function sendComfortAlert(): Promise<ComfortAlertResult> {
   return request<ComfortAlertResult>('/api/couple', {
     method: 'PATCH',
     body: JSON.stringify({ action: 'comfort-alert' }),
+  })
+}
+
+export async function sendComfortReply(): Promise<void> {
+  if (USE_MOCK_DATA) return
+
+  await request<void>('/api/couple', {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'comfort-reply' }),
   })
 }
 

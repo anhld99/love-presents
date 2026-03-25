@@ -33,6 +33,13 @@ interface ComfortAlertEmailPayload {
   appUrl: string
 }
 
+interface ComfortReplyEmailPayload {
+  anhEmail: string
+  emEmail: string
+  coupleName: string
+  appUrl: string
+}
+
 export async function sendInviteEmail(payload: InviteEmailPayload): Promise<void> {
   const transporter = createTransporter()
   const from = process.env.INVITE_EMAIL_FROM
@@ -195,6 +202,47 @@ export async function sendComfortAlertEmail(payload: ComfortAlertEmailPayload): 
         'X-Priority': '1',
         'X-MSMail-Priority': 'High',
       },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    throw new Error(`Gửi email thất bại: ${message}`)
+  }
+}
+
+export async function sendComfortReplyEmail(payload: ComfortReplyEmailPayload): Promise<void> {
+  const transporter = createTransporter()
+  const from = process.env.INVITE_EMAIL_FROM
+
+  if (!from) {
+    throw new Error('Thiếu INVITE_EMAIL_FROM để gửi email dỗ em')
+  }
+
+  const anhEmail = normalizeEmail(payload.anhEmail)
+  const emEmail = normalizeEmail(payload.emEmail)
+  const subject = 'Anh đang tới dỗ em đây'
+  const text = `${anhEmail} vừa nhắn rằng anh đang tới dỗ em đây. Mở Love Presents nhé: ${payload.appUrl}`
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#222">
+      <h2>Anh đang tới dỗ em đây</h2>
+      <p><strong>${escapeHtml(anhEmail)}</strong> vừa gửi lời hồi đáp từ couple <strong>${escapeHtml(payload.coupleName)}</strong>.</p>
+      <p>Anh đã nhận được tín hiệu của em và đang bật chế độ dỗ dành thật nghiêm túc.</p>
+      <p>
+        <a href="${escapeHtml(payload.appUrl)}" style="display:inline-block;padding:10px 16px;background:#d74f72;color:#fff;text-decoration:none;border-radius:8px">
+          Mở Love Presents
+        </a>
+      </p>
+      <p>Hy vọng sau email này mood của em sẽ dịu lại một chút nha.</p>
+    </div>
+  `
+
+  try {
+    await transporter.sendMail({
+      from,
+      to: emEmail,
+      subject,
+      text,
+      html,
+      replyTo: anhEmail,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
