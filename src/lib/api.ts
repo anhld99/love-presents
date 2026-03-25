@@ -57,6 +57,7 @@ export interface CoupleStatus {
   role: UserRole | null
   hasCouple: boolean
   comfortAlertCooldownUntil: string | null
+  latestComfortAlertAt: string | null
 }
 
 export interface ComfortAlertResult {
@@ -520,11 +521,13 @@ export async function createCouple(name: string): Promise<void> {
 
 export async function fetchCoupleStatus(): Promise<CoupleStatus> {
   if (USE_MOCK_DATA) {
+    const latestComfortAlertAt = readMockComfortAlertAt()
     return {
       email: 'mock@example.com',
       role: 'anh',
       hasCouple: true,
-      comfortAlertCooldownUntil: toCooldownUntil(readMockComfortAlertAt() ?? ''),
+      comfortAlertCooldownUntil: toCooldownUntil(latestComfortAlertAt ?? ''),
+      latestComfortAlertAt,
     }
   }
 

@@ -202,6 +202,31 @@ body {
   gap: 8px;
 }
 
+.nav-link-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.18px;
+}
+
+.nav-chip-hot {
+  color: var(--white);
+  background: linear-gradient(135deg, #e24b6f, #ff8a6a);
+  box-shadow: 0 8px 18px rgba(216, 79, 114, 0.28);
+  animation: pulseGlow 1.6s ease-in-out infinite;
+}
+
 .topbar-nav a,
 .topbar-theme,
 .topbar-logout {
@@ -216,6 +241,10 @@ body {
   padding: 9px 15px;
   background: transparent;
   transition: all 0.22s ease;
+}
+
+.topbar-nav a {
+  position: relative;
 }
 
 .topbar-theme,
@@ -446,6 +475,17 @@ body {
 .status-expired {
   background: rgba(245, 237, 237, 0.95);
   color: #6d4d4d;
+}
+
+.alert-attention {
+  color: #8e2447;
+  background: linear-gradient(135deg, rgba(255, 226, 236, 0.96), rgba(255, 240, 212, 0.94));
+  border-color: rgba(216, 79, 114, 0.28);
+  box-shadow: var(--shadow-glow);
+}
+
+.alert-attention.unread {
+  animation: pulseGlow 1.6s ease-in-out infinite;
 }
 
 .food-roulette-card,
@@ -1066,6 +1106,10 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.mobile-dock.columns-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .mobile-dock a,
 .mobile-dock-btn {
   border: 0;
@@ -1083,6 +1127,10 @@ body {
   align-items: center;
   justify-content: center;
   gap: 3px;
+}
+
+.mobile-dock a {
+  position: relative;
 }
 
 .mobile-dock-btn {
@@ -1103,6 +1151,24 @@ body {
 .mobile-dock-label {
   font-size: 0.67rem;
   letter-spacing: 0.12px;
+}
+
+.mobile-dock-badge {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-size: 0.74rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #e24b6f, #ff8a6a);
+  box-shadow: 0 8px 18px rgba(216, 79, 114, 0.28);
+  animation: pulseGlow 1.6s ease-in-out infinite;
 }
 
 .confetti-stage {
@@ -1553,6 +1619,17 @@ body {
 @keyframes drift {
   from { transform: translateY(-10px) translateX(0); }
   to { transform: translateY(12px) translateX(8px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 18px rgba(216, 79, 114, 0.28);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 10px 22px rgba(216, 79, 114, 0.4);
+  }
 }
 
 @media (max-width: 880px) {

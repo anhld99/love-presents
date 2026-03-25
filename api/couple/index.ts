@@ -32,8 +32,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       await ensureAppUser(user)
       const membership = await getMembershipByUserId(user.userId)
+      const latestComfortAlertAt = membership
+        ? await getLatestComfortAlertAt(membership.coupleId)
+        : null
       const comfortAlertCooldownUntil = membership && membership.role === 'em'
-        ? await getComfortAlertCooldownUntil(membership.coupleId)
+        ? toCooldownUntil(latestComfortAlertAt)
         : null
 
       return res.status(200).json({
@@ -42,6 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         role: membership?.role ?? null,
         hasCouple: membership !== null,
         comfortAlertCooldownUntil,
+        latestComfortAlertAt,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Không thể tải trạng thái couple'
@@ -119,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Chỉ em mới có thể gửi tín hiệu này cho anh' })
       }
 
-      const comfortAlertCooldownUntil = await getComfortAlertCooldownUntil(membership.coupleId)
+      const comfortAlertCooldownUntil = toCooldownUntil(await getLatestComfortAlertAt(membership.coupleId))
       if (comfortAlertCooldownUntil) {
         return res.status(409).json({
           error: `Anh vừa được nhắc rồi. Có thể gửi lại sau ${formatRemainingDuration(comfortAlertCooldownUntil)} nữa nha.`,
@@ -176,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   return res.status(405).json({ error: 'Method not allowed' })
 }
 
-async function getComfortAlertCooldownUntil(coupleId: string): Promise<string | null> {
+async function getLatestComfortAlertAt(coupleId: string): Promise<string | null> {
   const supabase = getSupabaseAdmin()
   const { data, error } = await supabase
     .from('comfort_alerts')
@@ -194,7 +198,15 @@ async function getComfortAlertCooldownUntil(coupleId: string): Promise<string | 
     return null
   }
 
-  const cooldownUntil = new Date(new Date(data.created_at).getTime() + COMFORT_ALERT_COOLDOWN_MS)
+  return data.created_at
+}
+
+function toCooldownUntil(createdAt: string | null): string | null {
+  if (!createdAt) {
+    return null
+  }
+
+  const cooldownUntil = new Date(new Date(createdAt).getTime() + COMFORT_ALERT_COOLDOWN_MS)
   return cooldownUntil.getTime() > Date.now() ? cooldownUntil.toISOString() : null
 }
 

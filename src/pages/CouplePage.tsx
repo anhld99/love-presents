@@ -5,6 +5,9 @@ interface CouplePageProps {
   hasCouple: boolean
   role: 'anh' | 'em' | null
   email: string | null
+  latestComfortAlertAt: string | null
+  hasUnreadComfortAlert: boolean
+  onMarkComfortAlertSeen: (timestamp: string | null) => void
   onCreateCouple: (name: string) => Promise<void>
   onInviteEm: (email: string) => Promise<void>
   onSendComfortAlert: () => Promise<ComfortAlertResult>
@@ -19,6 +22,9 @@ export function CouplePage({
   hasCouple,
   role,
   email,
+  latestComfortAlertAt,
+  hasUnreadComfortAlert,
+  onMarkComfortAlertSeen,
   onCreateCouple,
   onInviteEm,
   onSendComfortAlert,
@@ -55,6 +61,12 @@ export function CouplePage({
   }, [comfortAlertCooldownUntil, clockMs])
 
   const comfortAlertOnCooldown = comfortAlertRemainingSeconds > 0
+
+  useEffect(() => {
+    if (role === 'anh' && latestComfortAlertAt) {
+      onMarkComfortAlertSeen(latestComfortAlertAt)
+    }
+  }, [role, latestComfortAlertAt, onMarkComfortAlertSeen])
 
   useEffect(() => {
     if (!hasCouple) {
@@ -248,6 +260,14 @@ export function CouplePage({
 
       {email && <div className="alert">Đăng nhập: {email}</div>}
       {error && <div className="alert alert-error alert-spaced">{error}</div>}
+
+      {hasCouple && role === 'anh' && latestComfortAlertAt && (
+        <div className={`alert alert-attention alert-spaced${hasUnreadComfortAlert ? ' unread' : ''}`}>
+          {hasUnreadComfortAlert
+            ? `Em vừa gửi tín hiệu cần được dỗ lúc ${formatDate(latestComfortAlertAt)}.`
+            : `Tín hiệu gần nhất từ em được gửi lúc ${formatDate(latestComfortAlertAt)}.`}
+        </div>
+      )}
 
       {!hasCouple && (
         <div className="card couple-card">

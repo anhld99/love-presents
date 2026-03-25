@@ -31,6 +31,7 @@ import {
 type ThemeVariant = 'romantic' | 'anniversary'
 
 const THEME_STORAGE_KEY = 'lp-theme-variant'
+const COMFORT_ALERT_SEEN_KEY = 'lp-comfort-alert-seen'
 const DEFAULT_THEME: ThemeVariant = import.meta.env.VITE_THEME_VARIANT === 'anniversary' ? 'anniversary' : 'romantic'
 
 function getInitialTheme(): ThemeVariant {
@@ -39,18 +40,36 @@ function getInitialTheme(): ThemeVariant {
   return stored === 'anniversary' || stored === 'romantic' ? stored : DEFAULT_THEME
 }
 
+function readLastSeenComfortAlert(email: string | null): string | null {
+  if (typeof window === 'undefined' || !email) return null
+  return window.localStorage.getItem(`${COMFORT_ALERT_SEEN_KEY}:${email.toLowerCase()}`)
+}
+
+function writeLastSeenComfortAlert(email: string | null, timestamp: string): void {
+  if (typeof window === 'undefined' || !email) return
+  window.localStorage.setItem(`${COMFORT_ALERT_SEEN_KEY}:${email.toLowerCase()}`, timestamp)
+}
+
+function isNewerTimestamp(next: string | null, previous: string | null): boolean {
+  if (!next) return false
+  if (!previous) return true
+  return new Date(next).getTime() > new Date(previous).getTime()
+}
+
 function Topbar({
   onLogout,
   theme,
   onToggleTheme,
   canViewList,
   hasCouple,
+  showComfortAlertBadge,
 }: {
   onLogout: () => void
   theme: ThemeVariant
   onToggleTheme: () => void
   canViewList: boolean
   hasCouple: boolean
+  showComfortAlertBadge: boolean
 }) {
   return (
     <header className="topbar">
@@ -75,11 +94,12 @@ function Topbar({
               <span>🍜 Hôm nay ăn gì</span>
             </NavLink>
           )}
-          {!hasCouple && (
-            <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-link-inner">
               <span>💞 Couple</span>
-            </NavLink>
-          )}
+              {showComfortAlertBadge && <span className="nav-chip nav-chip-hot">Mới</span>}
+            </span>
+          </NavLink>
           <button className="topbar-theme" onClick={onToggleTheme}>
             {theme === 'anniversary' ? '🎀 Lãng mạn' : '🎉 Kỷ niệm'}
           </button>
@@ -96,12 +116,14 @@ function MobileDock({
   onLogout,
   canViewList,
   hasCouple,
+  showComfortAlertBadge,
 }: {
   onLogout: () => void
   canViewList: boolean
   hasCouple: boolean
+  showComfortAlertBadge: boolean
 }) {
-  const itemCount = (hasCouple && canViewList ? 1 : 0) + (hasCouple ? 1 : 0) + (hasCouple ? 1 : 0) + (!hasCouple ? 1 : 0) + 1
+  const itemCount = (hasCouple && canViewList ? 1 : 0) + (hasCouple ? 1 : 0) + (hasCouple ? 1 : 0) + 1 + 1
 
   return (
     <nav className={`mobile-dock columns-${itemCount}`} aria-label="Điều hướng nhanh">
@@ -123,12 +145,11 @@ function MobileDock({
           <span className="mobile-dock-label">Ăn gì</span>
         </NavLink>
       )}
-      {!hasCouple && (
-        <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span className="mobile-dock-icon">💞</span>
-          <span className="mobile-dock-label">Couple</span>
-        </NavLink>
-      )}
+      <NavLink to="/couple" className={({ isActive }) => isActive ? 'active' : ''}>
+        <span className="mobile-dock-icon">💞</span>
+        <span className="mobile-dock-label">Couple</span>
+        {showComfortAlertBadge && <span className="mobile-dock-badge">!</span>}
+      </NavLink>
       <button className="mobile-dock-btn" onClick={onLogout}>
         <span className="mobile-dock-icon">🌙</span>
         <span className="mobile-dock-label">Thoát</span>
@@ -145,6 +166,9 @@ function AuthenticatedApp({
   hasCouple,
   role,
   email,
+  latestComfortAlertAt,
+  hasUnreadComfortAlert,
+  onMarkComfortAlertSeen,
   onCreateCouple,
   onInviteEm,
   onSendComfortAlert,
@@ -161,6 +185,9 @@ function AuthenticatedApp({
   hasCouple: boolean
   role: 'anh' | 'em' | null
   email: string | null
+  latestComfortAlertAt: string | null
+  hasUnreadComfortAlert: boolean
+  onMarkComfortAlertSeen: (timestamp: string | null) => void
   onCreateCouple: (name: string) => Promise<void>
   onInviteEm: (email: string) => Promise<void>
   onSendComfortAlert: () => Promise<ComfortAlertResult>
@@ -181,6 +208,7 @@ function AuthenticatedApp({
         onToggleTheme={onToggleTheme}
         canViewList={canViewList}
         hasCouple={hasCouple}
+        showComfortAlertBadge={hasCouple && role === 'anh' && hasUnreadComfortAlert}
       />
       <Routes>
         <Route
@@ -197,6 +225,9 @@ function AuthenticatedApp({
               hasCouple={hasCouple}
               role={role}
               email={email}
+              latestComfortAlertAt={latestComfortAlertAt}
+              hasUnreadComfortAlert={hasUnreadComfortAlert}
+              onMarkComfortAlertSeen={onMarkComfortAlertSeen}
               onCreateCouple={onCreateCouple}
               onInviteEm={onInviteEm}
               onSendComfortAlert={onSendComfortAlert}
@@ -214,6 +245,7 @@ function AuthenticatedApp({
         onLogout={onLogout}
         canViewList={canViewList}
         hasCouple={hasCouple}
+        showComfortAlertBadge={hasCouple && role === 'anh' && hasUnreadComfortAlert}
       />
     </div>
   )
@@ -235,6 +267,49 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
 
   const canViewList = role === 'anh'
   const appHomePath = !hasCouple ? '/couple' : canViewList ? '/gifts' : '/add'
+  const [latestComfortAlertAt, setLatestComfortAlertAt] = useState<string | null>(null)
+  const [lastSeenComfortAlertAt, setLastSeenComfortAlertAt] = useState<string | null>(null)
+  const hasUnreadComfortAlert = role === 'anh' && isNewerTimestamp(latestComfortAlertAt, lastSeenComfortAlertAt)
+
+  useEffect(() => {
+    setLastSeenComfortAlertAt(readLastSeenComfortAlert(email))
+  }, [email])
+
+  useEffect(() => {
+    if (!authenticated || !hasCouple) {
+      setLatestComfortAlertAt(null)
+      return
+    }
+
+    let alive = true
+
+    async function loadCoupleStatus() {
+      try {
+        const status = await fetchCoupleStatus()
+        if (!alive) return
+        setLatestComfortAlertAt(status.latestComfortAlertAt)
+      } catch {
+        return
+      }
+    }
+
+    void loadCoupleStatus()
+
+    if (role !== 'anh') {
+      return () => {
+        alive = false
+      }
+    }
+
+    const timer = window.setInterval(() => {
+      void loadCoupleStatus()
+    }, 30000)
+
+    return () => {
+      alive = false
+      window.clearInterval(timer)
+    }
+  }, [authenticated, hasCouple, role])
 
   const handleCreateCouple = useCallback(async (name: string) => {
     await createCouple(name)
@@ -252,6 +327,12 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
   const handleFetchCoupleStatus = useCallback(async () => {
     return await fetchCoupleStatus()
   }, [])
+
+  const handleMarkComfortAlertSeen = useCallback((timestamp: string | null) => {
+    if (!timestamp || !email) return
+    writeLastSeenComfortAlert(email, timestamp)
+    setLastSeenComfortAlertAt(prev => isNewerTimestamp(timestamp, prev) ? timestamp : prev)
+  }, [email])
 
   const handleFetchInvites = useCallback(async () => {
     return await fetchCoupleInvites()
@@ -323,6 +404,9 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
                   hasCouple={hasCouple}
                   role={role}
                   email={email}
+                  latestComfortAlertAt={latestComfortAlertAt}
+                  hasUnreadComfortAlert={hasUnreadComfortAlert}
+                  onMarkComfortAlertSeen={handleMarkComfortAlertSeen}
                   onCreateCouple={handleCreateCouple}
                   onInviteEm={handleInviteEm}
                   onSendComfortAlert={handleSendComfortAlert}
