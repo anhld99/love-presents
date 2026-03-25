@@ -8,6 +8,8 @@ const USE_MOCK_DATA = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA 
 const MOCK_STORAGE_KEY = 'love-presents:mock-gifts'
 const MOCK_FOOD_STORAGE_KEY = 'love-presents:mock-food-options'
 const MOCK_FOOD_HISTORY_STORAGE_KEY = 'love-presents:mock-food-spin-history'
+const MOCK_COMFORT_ALERT_KEY = 'love-presents:mock-comfort-alert-at'
+const COMFORT_ALERT_COOLDOWN_MS = 1000 * 60 * 30
 
 export type UserRole = 'anh' | 'em'
 
@@ -44,10 +46,21 @@ export interface CoupleInvite {
 
 export interface CoupleActivity {
   id: string
-  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun'
+  type: 'couple_created' | 'invite_sent' | 'invite_accepted' | 'gift_added' | 'food_spun' | 'comfort_alert_sent'
   at: string
   title: string
   description: string
+}
+
+export interface CoupleStatus {
+  email: string | null
+  role: UserRole | null
+  hasCouple: boolean
+  comfortAlertCooldownUntil: string | null
+}
+
+export interface ComfortAlertResult {
+  comfortAlertCooldownUntil: string | null
 }
 
 const MOCK_SEED_GIFTS: GiftItem[] = [
@@ -182,6 +195,23 @@ function readMockFoodHistory(): FoodSpinHistoryItem[] {
 function writeMockFoodHistory(history: FoodSpinHistoryItem[]): void {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(MOCK_FOOD_HISTORY_STORAGE_KEY, JSON.stringify(history))
+}
+
+function readMockComfortAlertAt(): string | null {
+  if (typeof window === 'undefined') return null
+  return window.localStorage.getItem(MOCK_COMFORT_ALERT_KEY)
+}
+
+function writeMockComfortAlertAt(value: string): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(MOCK_COMFORT_ALERT_KEY, value)
+}
+
+function toCooldownUntil(createdAt: string): string | null {
+  if (!createdAt) return null
+
+  const cooldownUntil = new Date(new Date(createdAt).getTime() + COMFORT_ALERT_COOLDOWN_MS)
+  return cooldownUntil.getTime() > Date.now() ? cooldownUntil.toISOString() : null
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -485,6 +515,34 @@ export async function createCouple(name: string): Promise<void> {
   await request<void>('/api/couple', {
     method: 'POST',
     body: JSON.stringify({ name }),
+  })
+}
+
+export async function fetchCoupleStatus(): Promise<CoupleStatus> {
+  if (USE_MOCK_DATA) {
+    return {
+      email: 'mock@example.com',
+      role: 'anh',
+      hasCouple: true,
+      comfortAlertCooldownUntil: toCooldownUntil(readMockComfortAlertAt() ?? ''),
+    }
+  }
+
+  return request<CoupleStatus>('/api/couple')
+}
+
+export async function sendComfortAlert(): Promise<ComfortAlertResult> {
+  if (USE_MOCK_DATA) {
+    const createdAt = nowIso()
+    writeMockComfortAlertAt(createdAt)
+    return {
+      comfortAlertCooldownUntil: toCooldownUntil(createdAt),
+    }
+  }
+
+  return request<ComfortAlertResult>('/api/couple', {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'comfort-alert' }),
   })
 }
 

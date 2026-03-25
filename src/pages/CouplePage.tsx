@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import type { CoupleActivity, CoupleInvite } from '../lib/api'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import type { ComfortAlertResult, CoupleActivity, CoupleInvite, CoupleStatus } from '../lib/api'
 
 interface CouplePageProps {
   hasCouple: boolean
@@ -7,6 +7,8 @@ interface CouplePageProps {
   email: string | null
   onCreateCouple: (name: string) => Promise<void>
   onInviteEm: (email: string) => Promise<void>
+  onSendComfortAlert: () => Promise<ComfortAlertResult>
+  onFetchCoupleStatus: () => Promise<CoupleStatus>
   onFetchInvites: () => Promise<CoupleInvite[]>
   onResendInvite: (inviteId: string) => Promise<void>
   onCancelInvite: (inviteId: string) => Promise<void>
@@ -19,6 +21,8 @@ export function CouplePage({
   email,
   onCreateCouple,
   onInviteEm,
+  onSendComfortAlert,
+  onFetchCoupleStatus,
   onFetchInvites,
   onResendInvite,
   onCancelInvite,
@@ -28,8 +32,11 @@ export function CouplePage({
   const [inviteEmail, setInviteEmail] = useState('')
   const [loadingCreate, setLoadingCreate] = useState(false)
   const [loadingInvite, setLoadingInvite] = useState(false)
+  const [loadingComfortAlert, setLoadingComfortAlert] = useState(false)
   const [createMessage, setCreateMessage] = useState('')
   const [inviteMessage, setInviteMessage] = useState('')
+  const [comfortMessage, setComfortMessage] = useState('')
+  const [comfortAlertCooldownUntil, setComfortAlertCooldownUntil] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const [invites, setInvites] = useState<CoupleInvite[]>([])
@@ -38,11 +45,22 @@ export function CouplePage({
 
   const [activity, setActivity] = useState<CoupleActivity[]>([])
   const [activityLoading, setActivityLoading] = useState(false)
+  const [clockMs, setClockMs] = useState(() => Date.now())
+
+  const comfortAlertRemainingSeconds = useMemo(() => {
+    if (!comfortAlertCooldownUntil) return 0
+
+    const remainingMs = new Date(comfortAlertCooldownUntil).getTime() - clockMs
+    return remainingMs > 0 ? Math.ceil(remainingMs / 1000) : 0
+  }, [comfortAlertCooldownUntil, clockMs])
+
+  const comfortAlertOnCooldown = comfortAlertRemainingSeconds > 0
 
   useEffect(() => {
     if (!hasCouple) {
       setInvites([])
       setActivity([])
+      setComfortAlertCooldownUntil(null)
       return
     }
 
@@ -55,16 +73,18 @@ export function CouplePage({
       setActivityLoading(true)
 
       try {
-        if (role === 'anh') {
-          const inviteList = await onFetchInvites()
-          if (alive) {
+        const [inviteList, activityList, coupleStatus] = await Promise.all([
+          role === 'anh' ? onFetchInvites() : Promise.resolve(null),
+          onFetchActivity(),
+          onFetchCoupleStatus(),
+        ])
+
+        if (alive) {
+          if (inviteList) {
             setInvites(inviteList)
           }
-        }
-
-        const activityList = await onFetchActivity()
-        if (alive) {
           setActivity(activityList)
+          setComfortAlertCooldownUntil(coupleStatus.comfortAlertCooldownUntil)
         }
       } catch (err) {
         if (alive) {
@@ -83,7 +103,26 @@ export function CouplePage({
     return () => {
       alive = false
     }
-  }, [hasCouple, role, onFetchInvites, onFetchActivity])
+  }, [hasCouple, role, onFetchInvites, onFetchActivity, onFetchCoupleStatus])
+
+  useEffect(() => {
+    if (!comfortAlertCooldownUntil) return
+
+    setClockMs(Date.now())
+    const timer = window.setInterval(() => {
+      setClockMs(Date.now())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [comfortAlertCooldownUntil])
+
+  useEffect(() => {
+    if (comfortAlertCooldownUntil && !comfortAlertOnCooldown) {
+      setComfortAlertCooldownUntil(null)
+    }
+  }, [comfortAlertCooldownUntil, comfortAlertOnCooldown])
 
   async function reloadInvites() {
     if (role !== 'anh') return
@@ -94,6 +133,11 @@ export function CouplePage({
   async function reloadActivity() {
     const activityList = await onFetchActivity()
     setActivity(activityList)
+  }
+
+  async function reloadCoupleStatus() {
+    const coupleStatus = await onFetchCoupleStatus()
+    setComfortAlertCooldownUntil(coupleStatus.comfortAlertCooldownUntil)
   }
 
   async function handleCreateCouple(e: FormEvent) {
@@ -149,6 +193,28 @@ export function CouplePage({
       setError(err instanceof Error ? err.message : 'Không thể gửi lại lời mời')
     } finally {
       setInviteActionId('')
+    }
+  }
+
+  async function handleSendComfortAlert() {
+    setLoadingComfortAlert(true)
+    setError('')
+    setComfortMessage('')
+
+    try {
+      const result = await onSendComfortAlert()
+      setComfortAlertCooldownUntil(result.comfortAlertCooldownUntil)
+      setComfortMessage('Đã gửi email quan trọng cho anh rồi. Hy vọng anh sẽ dỗ bạn thật nhanh!')
+      await reloadActivity()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể gửi tín hiệu cho anh')
+      try {
+        await reloadCoupleStatus()
+      } catch {
+        void 0
+      }
+    } finally {
+      setLoadingComfortAlert(false)
     }
   }
 
@@ -289,7 +355,29 @@ export function CouplePage({
       {hasCouple && role === 'em' && (
         <div className="card couple-card">
           <h3>Bạn đã tham gia couple với vai trò em</h3>
-          <p className="page-subtitle">Bạn chỉ có quyền thêm quà, không xem danh sách quà.</p>
+          <p className="page-subtitle">Bạn có thể thêm quà và gửi tín hiệu để anh biết là đến lúc phải dỗ em rồi.</p>
+          {comfortMessage && <div className="alert alert-success alert-spaced">{comfortMessage}</div>}
+          <p className="page-subtitle">
+            {comfortAlertOnCooldown
+              ? `Có thể gửi lại tín hiệu sau ${formatCountdown(comfortAlertRemainingSeconds)} nữa.`
+              : 'Email sẽ được đánh dấu quan trọng để anh chú ý ngay.'}
+          </p>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={loadingComfortAlert || comfortAlertOnCooldown}
+              onClick={() => {
+                void handleSendComfortAlert()
+              }}
+            >
+              {loadingComfortAlert
+                ? 'Đang gửi email quan trọng...'
+                : comfortAlertOnCooldown
+                  ? `Chờ ${formatCountdown(comfortAlertRemainingSeconds)}`
+                  : 'Em đang giận đấy, dỗ em đi'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -329,4 +417,15 @@ function statusLabel(status: CoupleInvite['status']): string {
   if (status === 'accepted') return 'Đã xác nhận'
   if (status === 'cancelled') return 'Đã huỷ'
   return 'Hết hạn'
+}
+
+function formatCountdown(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (minutes <= 0) {
+    return `${seconds} giây`
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }

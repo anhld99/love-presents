@@ -16,12 +16,16 @@ import {
   acceptCoupleInvite,
   cancelCoupleInvite,
   createCouple,
+  fetchCoupleStatus,
   fetchCoupleActivity,
   fetchCoupleInvites,
   resendCoupleInvite,
+  sendComfortAlert,
   sendCoupleInvite,
+  type ComfortAlertResult,
   type CoupleActivity,
   type CoupleInvite,
+  type CoupleStatus,
 } from './lib/api'
 
 type ThemeVariant = 'romantic' | 'anniversary'
@@ -143,6 +147,8 @@ function AuthenticatedApp({
   email,
   onCreateCouple,
   onInviteEm,
+  onSendComfortAlert,
+  onFetchCoupleStatus,
   onFetchInvites,
   onResendInvite,
   onCancelInvite,
@@ -157,6 +163,8 @@ function AuthenticatedApp({
   email: string | null
   onCreateCouple: (name: string) => Promise<void>
   onInviteEm: (email: string) => Promise<void>
+  onSendComfortAlert: () => Promise<ComfortAlertResult>
+  onFetchCoupleStatus: () => Promise<CoupleStatus>
   onFetchInvites: () => Promise<CoupleInvite[]>
   onResendInvite: (inviteId: string) => Promise<void>
   onCancelInvite: (inviteId: string) => Promise<void>
@@ -191,6 +199,8 @@ function AuthenticatedApp({
               email={email}
               onCreateCouple={onCreateCouple}
               onInviteEm={onInviteEm}
+              onSendComfortAlert={onSendComfortAlert}
+              onFetchCoupleStatus={onFetchCoupleStatus}
               onFetchInvites={onFetchInvites}
               onResendInvite={onResendInvite}
               onCancelInvite={onCancelInvite}
@@ -233,6 +243,14 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
 
   const handleInviteEm = useCallback(async (inviteEmail: string) => {
     await sendCoupleInvite(inviteEmail)
+  }, [])
+
+  const handleSendComfortAlert = useCallback(async () => {
+    return await sendComfortAlert()
+  }, [])
+
+  const handleFetchCoupleStatus = useCallback(async () => {
+    return await fetchCoupleStatus()
   }, [])
 
   const handleFetchInvites = useCallback(async () => {
@@ -307,6 +325,8 @@ function AppInner({ theme, onToggleTheme }: { theme: ThemeVariant, onToggleTheme
                   email={email}
                   onCreateCouple={handleCreateCouple}
                   onInviteEm={handleInviteEm}
+                  onSendComfortAlert={handleSendComfortAlert}
+                  onFetchCoupleStatus={handleFetchCoupleStatus}
                   onFetchInvites={handleFetchInvites}
                   onResendInvite={handleResendInvite}
                   onCancelInvite={handleCancelInvite}
